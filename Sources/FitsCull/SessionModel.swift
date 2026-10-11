@@ -170,6 +170,17 @@ final class SessionModel {
         update(id) { $0.rejected.toggle() }
     }
 
+    var outOfThresholdCount: Int {
+        records.filter { isVisible($0) && ($0.analysis.map { thresholds.violates($0) } ?? false) }.count
+    }
+
+    /// Segna come scartati (senza spostare) i file visibili oltre le soglie.
+    func markOutOfThreshold() {
+        for i in records.indices where isVisible(records[i]) {
+            if let a = records[i].analysis, thresholds.violates(a) { records[i].rejected = true }
+        }
+    }
+
     func saveCache() {
         try? cache.save()
     }

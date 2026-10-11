@@ -55,8 +55,13 @@ struct ContentView: View {
 }
 
 struct MainPane: View {
+    @Environment(SessionModel.self) private var model
+
     var body: some View {
-        ImageCanvasView()
+        switch model.viewMode {
+        case .review: ImageCanvasView()
+        case .session: SessionChartsView()
+        }
     }
 }
 
