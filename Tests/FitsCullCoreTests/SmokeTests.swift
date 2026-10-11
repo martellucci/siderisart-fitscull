@@ -2,5 +2,5 @@ import FitsCullCore
 import Testing
 
 @Test func versionIsSet() {
-    #expect(FitsCullCore.version == "0.1.0")
+    #expect(FitsCullCore.version == "1.0.0")
 }

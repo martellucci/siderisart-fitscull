@@ -1,6 +1,8 @@
 # FitsCull — Documento di progetto (v1)
 
-Data: 2026-10-11 · Stato: in revisione
+Data: 2026-10-11 · Stato: **v1.0.0 chiusa** (2026-10-11) · Branch `fitscull-v1`
+
+Questo documento descrive la v1 **come realizzata**. Le decisioni prese durante e dopo l'implementazione sono riassunte in §10 e, in ordine cronologico, in `CHANGELOG.md`.
 
 ## 1. Obiettivo
 
@@ -18,13 +20,14 @@ Criteri di successo:
 | Voce | Valore |
 |---|---|
 | Sistema | macOS 26.6, Apple Silicon (arm64) |
-| Camera principale | ZWO ASI2600MC Pro, 6248×4176, 16 bit (BITPIX 16, BZERO 32768), Bayer RGGB, ~50 MB/file |
+| Camera principale | **ZWO ASI2600MM Pro (mono)**, 6248×4176, 16 bit (BITPIX 16, BZERO 32768), filtri (L, …), ~50 MB/file |
+| Camere supportate | mono e a colori con matrice Bayer (es. ASI2600MC, usata nello sviluppo iniziale) |
 | Software di acquisizione | ZWO ASIAIR Pro, N.I.N.A. 3.x (header con nomi di campo diversi) |
 | Posizione dei file | disco interno o esterno, NAS in LAN (SMB) |
 | Installazione app | `/Volumes/Dati2/applicazioni/FitsCull.app` |
 | Sorgenti | `~/Documents/FitsCull` (repository git) |
 | Toolchain | Command Line Tools for Xcode 26.6 (Swift 6.3.3, SDK 26.5) + VS Code con estensione Swift; **Xcode non richiesto** |
-| Nota toolchain | I test con Swift Testing richiedono `-F`/`-rpath` verso `/Library/Developer/CommandLineTools/Library/Developer/Frameworks`: inclusi negli script |
+| Nota toolchain | I test con Swift Testing richiedono `-F`/`-rpath` verso `/Library/Developer/CommandLineTools/Library/Developer/Frameworks`: inclusi in `scripts/test.sh` |
 
 ## 3. Perimetro
 
@@ -33,15 +36,15 @@ Criteri di successo:
 - Apertura di una cartella singola (non ricorsiva) con file `.fit`, `.fits`, `.fts`.
 - FITS non compressi, HDU primaria, `NAXIS = 2`, BITPIX 8/16/32/−32, con BZERO/BSCALE.
 - Immagini mono e CFA (Bayer RGGB, BGGR, GRBG, GBRG da `BAYERPAT`).
-- Uso principale: frame **light**.
-- Anteprima, statistiche per canale, metriche stellari, vista Sessione, scarto verso il Cestino.
+- Uso principale: frame **light**; dark, flat, bias e dark flat sono letti con statistiche ma **senza metriche stellari**.
+- Anteprima stretchata con zoom Adatta / 50% / 100%, statistiche per canale, metriche stellari, vista Sessione, scarto verso il Cestino (singolo o multiplo).
 
 **Escluso dalla v1 (architettura predisposta)**
 
-- XISF (nuovo lettore dietro la stessa interfaccia `ImageSource`).
+- XISF.
 - Statistiche specifiche per dark e flat (pixel caldi, uniformità).
 - FITS compressi (fpack/Rice), cubi a 3 piani, sottocartelle.
-- Trascinamento delle soglie direttamente sul grafico.
+- Trascinamento delle soglie direttamente sul grafico; soglie di segnalazione regolabili dall'interfaccia.
 - Annullamento in-app dopo lo spostamento nel Cestino (si usa "Ripristina" del Finder).
 
 ## 4. Architettura
@@ -52,40 +55,42 @@ Criteri di successo:
         ▼
  ┌──────────────┐   ┌──────────────┐   ┌───────────────┐   ┌──────────────┐
  │ FITSReader   │──▶│ FrameDecoder │──▶│ Statistics    │──▶│              │
- │ header+pixel │   │ Bayer 2×2 →  │   │ per canale    │   │ SessionStore │
- └──────────────┘   │ RGB metà ris.│   ├───────────────┤   │ elenco file, │
+ │ header+pixel │   │ colore: 2×2  │   │ per canale    │   │ SessionModel │
+ └──────────────┘   │ mono: piena  │   ├───────────────┤   │ elenco file, │
         │           └──────┬───────┘   │ StarDetector  │──▶│ metriche,    │
-        ▼                  │           └───────────────┘   │ stato ✓/✗    │
- ┌──────────────┐          ▼                               └──────┬───────┘
+        ▼                  │           │ (solo light)  │   │ stato ✓/✗    │
+ ┌──────────────┐          ▼           └───────────────┘   └──────┬───────┘
  │ FrameMeta    │   ┌──────────────┐   ┌───────────────┐          │
- │ ASIAIR/NINA  │   │ AutoStretch  │──▶│ PreviewCache  │──────────┤
+ │ ASIAIR/NINA  │   │ AutoStretch  │──▶│ anteprime     │──────────┤
  │ → campi unici│   │ (tipo STF)   │   │ ±5 file       │          ▼
  └──────────────┘   └──────────────┘   └───────────────┘   Interfaccia SwiftUI
 ```
 
-Tecnologie: Swift 6, SwiftUI, Accelerate (vDSP), Swift Charts, Swift Testing. Nessuna dipendenza esterna.
+Tecnologie: Swift 6, SwiftUI, Swift Charts, Swift Testing. Nessuna dipendenza esterna (i calcoli sono cicli Swift ottimizzati in release; Accelerate non è servito per rispettare i tempi).
 
 ### 4.1 Componenti
 
 | Componente | Responsabilità | Ingresso → Uscita |
 |---|---|---|
-| `FITSReader` | Legge l'header a blocchi da 2880 byte, legge i dati con `Data(contentsOf:options:.mappedIfSafe)` (mappati solo su volumi locali: su un NAS una disconnessione con file mappato farebbe terminare l'app), converte big-endian + BZERO/BSCALE in `Float` | URL → `FITSImage` (header grezzo, larghezza, altezza, pixel `[Float]` in ADU) |
-| `FrameMeta` | Normalizza le chiavi dei vari software: `EXPTIME`/`EXPOSURE`, `CCD-TEMP`, `SET-TEMP`, `GAIN`, `OFFSET`, `DATE-OBS`, `OBJECT`, `IMAGETYP`, `BAYERPAT`, `XPIXSZ`, `FOCALLEN`, `XBINNING`, `FILTER`, `AIRMASS`; calcola la scala `206,265 × XPIXSZ / FOCALLEN` ″/px (XPIXSZ include già il binning) | header → `FrameMeta` (campi opzionali) |
-| `FrameDecoder` | Superpixel 2×2: per ogni cella Bayer R, media dei due G, B → immagine RGB a metà risoluzione; per mono restituisce un solo canale a piena risoluzione (stelle misurate a piena risoluzione; l'anteprima è ridotta 2×2 per memoria e zoom 50% coerenti) | `FITSImage` + pattern → `PlanarImage` (1 o 3 piani `Float`) |
-| `Statistics` | Per canale (dai sotto-piani CFA, G = unione dei due G): min, max, media, mediana, σ, rumore = 1,4826·MAD, % saturi (≥ 99,5% del massimo rappresentabile dal BITPIX dopo BZERO). Fondo cielo = mediana | piano → `ChannelStats` |
-| `StarDetector` | Su luminanza a metà risoluzione: fondo per tasselli 64×64 (mediana, interpolato) sottratto; soglia 5σ del rumore; massimi locali + regione connessa; scarta stelle sature, troppo piccole (< 3 px) o al bordo; per ogni stella centroide, flusso, **HFR**, momenti secondi → **FWHM** = 2,3548·√((σx²+σy²)/2) ed **eccentricità** = √(1 − b²/a²). Risultato: numero stelle e mediane di HFR, FWHM (px e ″, scala ×2 per il superpixel), eccentricità | `PlanarImage` + scala → `StarMetrics` |
-| `AutoStretch` | Trasferimento di toni medi come l'STF di PixInsight: ombre = mediana − 2,8·MAD normalizzato, toni medi per portare la mediana a 0,25; modalità canali collegati / separati; uscita 8 bit | `PlanarImage` → `CGImage` |
-| `AnalysisQueue` | Analizza tutti i file in background con 2–4 operazioni in parallelo (configurabile, prudente per NAS); priorità al file corrente e ai vicini ±3 | elenco URL → aggiornamenti al `SessionStore` |
-| `PreviewCache` | Conserva le anteprime `CGImage` per il corrente ±5 file (~26 MB ciascuna, tetto ~300 MB) | — |
-| `MetricsCache` | Salva le metriche su disco in `~/Library/Application Support/FitsCull/` con chiave percorso + dimensione + data di modifica; riapertura di una cartella senza ricalcolo | `FrameMetrics` ⇄ JSON |
-| `SessionStore` | Stato osservabile: elenco frame, metriche, stato (in attesa / analizzato / errore / scartato), mediane della sessione, regole sui valori anomali | — |
-| `TrashService` | Sposta i file scartati con `FileManager.trashItem`; gestisce i volumi senza Cestino (§6) | URL[] → risultato per file |
+| `FITSReader` | Legge l'header a blocchi da 2880 byte; legge i dati con `Data(contentsOf:options:.mappedIfSafe)` (mappati solo su volumi locali: su un NAS una disconnessione con file mappato farebbe terminare l'app); converte big-endian + BZERO/BSCALE in `Float` | URL → `FITSImage` (header, dimensioni, pixel `[Float]` in ADU, massimo rappresentabile) |
+| `FrameMeta` | Normalizza le chiavi dei vari software: `EXPTIME`/`EXPOSURE`, `CCD-TEMP`, `SET-TEMP`, `GAIN`, `OFFSET`, `DATE-OBS`, `OBJECT`, `IMAGETYP`, `BAYERPAT`, `XPIXSZ`, `FOCALLEN`, `XBINNING`, `FILTER`, `AIRMASS`, `INSTRUME`; scala `206,265 × XPIXSZ / FOCALLEN` ″/px (XPIXSZ include già il binning); `ImageType.hasStars` vero solo per light e tipo sconosciuto | header → `FrameMeta` |
+| `FrameDecoder` | Colore: superpixel 2×2 (R, media dei due G, B) a metà risoluzione. Mono: piano unico a piena risoluzione. `demosaic`: colore ricostruito a piena risoluzione (bilineare) per lo zoom 100%. `binned2x2`: anteprima dei mono a metà risoluzione. `cfaChannels`: campioni grezzi per colore per le statistiche | `FITSImage` + pattern → `PlanarImage` |
+| `Statistics` | Per canale (sotto-piani CFA, G = unione dei due G; mono = L): min, max, media, mediana, σ, rumore = 1,4826·MAD, % saturi (≥ 99,5% del massimo rappresentabile). Mediana e MAD con istogramma a 65 536 classi (O(n)). Fondo cielo = media delle mediane dei canali | piano → `ChannelStats` |
+| `StarDetector` | Solo per light/tipo sconosciuto. Luminanza a metà risoluzione (colore) o piena (mono); fondo per tasselli 64×64 interpolato; soglia 5σ; regioni connesse; scarta stelle sature (≥ 95% del massimo sulla luminanza), < 3 px o al bordo. Per ogni stella: centroide, **HFR** interpolato, **FWHM** ed **eccentricità** da momenti secondi pesati con una gaussiana adattiva e correzione analitica del peso (esatta per profili gaussiani). Risultato: numero stelle e mediane | piano + scala → `StarMetrics?` (nil per i file di calibrazione) |
+| `AutoStretch` | Come l'AutoSTF di PixInsight: ombre = mediana − 2,8·MAD normalizzato, toni medi per portare la mediana a 0,25; canali collegati / separati; uscita RGBA 8 bit, istogramma visualizzato | `PlanarImage` → `CGImage` |
+| `FrameAnalyzer` | Pipeline lettura → metadati → statistiche → stelle; anteprima (sempre a metà risoluzione) e piena risoluzione per lo zoom 100% | URL → `FrameAnalysis` (+ `PreviewSource`) |
+| `FolderScanner` | Elenco dei FITS della cartella con header letti (solo i primi blocchi), ordinati per `DATE-OBS` poi nome; i file illeggibili restano in elenco con il motivo | cartella → `[ScannedFrame]` |
+| `MetricsCache` | Metriche salvate in `~/Library/Application Support/FitsCull/metrics-v2.json`, chiave percorso + dimensione + data di modifica, thread-safe | `FrameAnalysis` ⇄ JSON |
+| `OutlierRules` / `Thresholds` | Segnalazioni rispetto alla sessione (§5.1) e soglie manuali della vista Sessione | analisi → `OutlierFlags` |
+| `AnalysisOrder` / `SelectionPolicy` | Ordine di lavoro (file corrente, poi vicini), finestra delle anteprime, navigazione e riconciliazione della selezione col filtro | — |
+| `TrashService` | Cestino con `FileManager.trashItem`; ripiego `_scartati/` (senza sovrascrivere) o eliminazione definitiva per i volumi senza Cestino (§6) | URL[] → resoconto per file |
+| `SessionModel` (app) | Stato osservabile, analisi in background con 3 lavori in parallelo, anteprime del corrente ±5, piena risoluzione del solo file corrente al 100% | — |
 
 ### 4.2 Flusso dei dati
 
-1. ⌘O → scelta cartella → elenco dei file FITS ordinati per `DATE-OBS` (fallback: nome).
-2. `MetricsCache` fornisce subito le metriche già note; gli altri file vanno in `AnalysisQueue`.
-3. Per ogni file: `FITSReader` → `FrameMeta` + `FrameDecoder` → `Statistics` + `StarDetector` → `SessionStore`; se il file è vicino a quello corrente anche `AutoStretch` → `PreviewCache`.
+1. ⌘O → scelta cartella → `FolderScanner` legge gli header e ordina i file.
+2. `MetricsCache` fornisce subito le metriche già note; gli altri file vengono analizzati in background, prima il file corrente e i vicini.
+3. Per ogni file: `FITSReader` → `FrameMeta` + `FrameDecoder` → `Statistics` + `StarDetector` → `SessionModel`; per i vicini anche `AutoStretch` → anteprima.
 4. I pixel originali vengono rilasciati subito dopo l'analisi.
 
 ## 5. Interfaccia
@@ -93,40 +98,45 @@ Tecnologie: Swift 6, SwiftUI, Accelerate (vDSP), Swift Charts, Swift Testing. Ne
 ### 5.1 Vista Revisione (predefinita)
 
 ```
-┌─ FitsCull ── Dati2 › 2025-12-12 M42 ────────────────────────────────────────────┐
-│ [Apri cartella] [Tipo: Light ▾] [Ordina: Data ▾]   124 file · 7 scartati · 6,1 GB│
+┌─ FitsCull ── LDN 1355 ── 124 file · 7 scartati · 6,1 GB ─── [Apri] [Tipo ▾] [Ordina ▾] [Revisione|Sessione]┐
 ├─────────────────────────────┬─────────────────────────────────┬─────────────────┤
-│  #  Ora   Fondo FWHM″ ★  Ecc│                                 │ FILE            │
-│ 39 22:35  1851 4.0  405 .41 │                                 │ Light_M42_0040  │
-│▶40 22:37  1855 3.8  401 .43 │      [ anteprima stretchata ]   │ 120s G100 -20°C │
-│ 41 22:39  2604 8.7  121 .71✗│                                 │ 1.88″/px  RGGB  │
-│ ...                         │                                 │ STATISTICHE R G B│
-│                             │                                 │ ISTOGRAMMA      │
-│                             │                                 │ [Header FITS ▸] │
+│  #  Ora   Esp Fondo FWHM″ ★ │                                 │ FILE            │
+│  1 03:16  300 2933 4.39 6789│      [ anteprima stretchata ]   │ Light_LDN…_0001 │
+│▶ 2 03:21  300 2137 4.72 7094│                                 │ Light·300 s·L   │
+│  3 03:26  300 1851 4.46 7506│                                 │ 1.40″/px·554 mm │
+│ ...                         │                                 │ STATISTICHE     │
+│                             ├─────────────────────────────────┤ STELLE          │
+│                             │⏮ ◀  2 / 124 ▶ ⏭│Adatta 50% 100%│ ISTOGRAMMA      │
+│                             │              ✗ Scarta   🗑      │ [Header FITS ▸] │
 ├─────────────────────────────┴─────────────────────────────────┴─────────────────┤
-│ ←/→ naviga  X scarta  Spazio 1:1  S stretch  ⌘⌫ sposta scartati nel Cestino (7)  │
+│ ←/→ naviga · X scarta · Spazio adatta/100% · ⌘⌫ cestino · S stretch · L canali   │
+│                                              [Sposta scartati nel Cestino (7)]   │
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- Lista a sinistra: tabella ordinabile (#, ora, esposizione, fondo, FWHM″, stelle, eccentricità, stato).
-- Valori anomali evidenziati rispetto alla mediana di sessione: fondo > +30% **e** > 3000 ADU, stelle < −50%, FWHM > mediana + 25%, eccentricità > 0,75 (soglia fissa; ~0,67–0,70 in PixInsight). Solo segnalazione, nessuno scarto automatico.
-- Pannello destro: dati del file, statistiche per canale, istogramma, header completo espandibile.
-- Barra sotto l'immagine: primo / precedente / posizione "12 / 124" / successivo / ultimo; zoom Adatta, 50% (un pixel dell'anteprima a metà risoluzione per pixel dello schermo) e 100% (pixel reali del sensore, colore ricostruito a piena risoluzione solo per il file corrente, ~0,75 s; nel frattempo anteprima ingrandita 2×); Scarta/Ripristina; cestino del solo file corrente, **con conferma**, poi passa al successivo.
-- Metriche stellari solo per light e file senza tipo; per dark, flat, bias e dark flat sono assenti ("–").
+- Lista a sinistra: #, ora, esposizione, fondo, FWHM″ (in px se la scala non è nota), stelle, eccentricità, stato; ordinamento dal menu "Ordina" (Data / FWHM / Stelle / Fondo).
+- **Segnalazioni** (arancione nella lista, ⚠︎ nello stato, riga nel pannello; mai scarto automatico):
+  - **fondo alto**: fondo > +30% della mediana di sessione **e** > 3000 ADU;
+  - **poche stelle**: stelle < 50% della mediana di sessione;
+  - **FWHM alta**: FWHM > mediana di sessione + 25%;
+  - **stelle allungate**: eccentricità > 0,75 (soglia fissa; ≈ 0,68–0,69 in PixInsight).
+- Pannello destro: dati del file, statistiche per canale, metriche stellari (assenti per i file di calibrazione), istogramma visualizzato, header completo espandibile.
+- Barra sotto l'immagine: primo / precedente / posizione / successivo / ultimo; zoom **Adatta**, **50%** (anteprima a metà risoluzione, un pixel per pixel dello schermo, immediato) e **100%** (pixel reali del sensore, colore ricostruito a piena risoluzione solo per il file corrente, ≈ 0,75 s; nel frattempo anteprima ingrandita 2×; lo zoom resta attivo cambiando file); Scarta / Ripristina; cestino del solo file corrente **con conferma**, poi passa al successivo.
+- File in errore: messaggio con il motivo e pulsante **Riprova**.
 
 ### 5.2 Vista Sessione
 
-Grafici (Swift Charts) di FWHM″, numero stelle, fondo ed eccentricità in funzione dell'ora. Soglie impostabili numericamente e visualizzate come linee; pulsante "Segna fuori soglia" (marca come scartati, non sposta). Clic su un punto → apre quel file in Revisione.
+Grafici (Swift Charts) di FWHM″, numero stelle, fondo ed eccentricità in funzione dell'ora. Soglie manuali (FWHM max, stelle min, fondo max, eccentricità max) visualizzate come linee; pulsante "Segna fuori soglia" (marca come scartati, non sposta). Clic su un punto → apre quel file in Revisione. Le soglie su stelle, FWHM ed eccentricità non si applicano ai file di calibrazione.
 
 ### 5.3 Tastiera
 
 | Tasto | Azione |
 |---|---|
 | ←/→, ↑/↓ | file precedente / successivo |
+| Inizio / Fine | primo / ultimo file |
 | X | scarta / ripristina il file corrente |
 | Spazio | alterna Adatta / 100% |
 | ⌘0 | zoom Adatta |
-| Inizio / Fine | primo / ultimo file |
 | S | stretch attivo / disattivo |
 | L | canali collegati / separati |
 | ⌘⌫ | sposta il file corrente nel Cestino (con conferma) |
@@ -136,45 +146,70 @@ Grafici (Swift Charts) di FWHM″, numero stelle, fondo ed eccentricità in funz
 
 ## 6. Errori e casi limite
 
-- **Volumi senza Cestino** (tipico delle condivisioni SMB del NAS): se `trashItem` fallisce per questo motivo, dialogo con due scelte: spostare in `_scartati/` nella stessa cartella, oppure eliminare definitivamente (seconda conferma con numero di file e dimensione). Mai eliminazioni silenziose.
-- **File non supportato** (compresso, NAXIS ≠ 2, BITPIX −64, header danneggiato): riga marcata "non supportato" con il motivo; la navigazione lo mostra ma senza anteprima.
-- **File scomparso / NAS scollegato**: stato "errore" con pulsante Riprova; l'app resta reattiva.
+- **Volumi senza Cestino** (tipico delle condivisioni SMB del NAS): dialogo con due scelte: spostare in `_scartati/` nella stessa cartella (predefinita, non sovrascrive), oppure eliminare definitivamente (seconda conferma con numero di file e dimensione). Mai eliminazioni silenziose. Verificato dall'utente sul NAS.
+- **File non supportato** (compresso, NAXIS ≠ 2, BITPIX −64, header danneggiato, file troncato): riga in errore con il motivo; gli altri file funzionano.
+- **File scomparso / NAS scollegato**: lettura non mappata sui volumi di rete, quindi niente crash; stato "errore" con pulsante Riprova; l'app resta reattiva.
 - **Header incompleto** (manca focale o pixel): FWHM mostrata solo in pixel.
 - **Cartella vuota o senza FITS**: messaggio esplicito.
-- **Memoria**: solo `PreviewCache` limitata; nessun buffer full-res trattenuto.
+- **Selezione nascosta dal filtro Tipo**: la selezione passa al primo file visibile (evita ricaricamenti continui).
+- **Memoria**: anteprime a metà risoluzione (~26 MB ciascuna, corrente ±5 ≈ 300 MB); la piena risoluzione è trattenuta solo per il file corrente con zoom 100%.
 
 ## 7. Distribuzione
 
 Pacchetto Swift (SwiftPM) in `~/Documents/FitsCull`:
 
-- `FitsCullCore` (libreria): tutto il codice non grafico (§4.1 tranne l'interfaccia), interamente testabile;
-- `FitsCull` (eseguibile SwiftUI): interfaccia e ciclo di vita dell'app, dipende da `FitsCullCore`;
+- `FitsCullCore` (libreria): tutto il codice non grafico, interamente testabile;
+- `FitsCull` (eseguibile SwiftUI): interfaccia e ciclo di vita dell'app;
+- `fcanalyze` (eseguibile da riga di comando): tabella delle metriche e dei tempi per file, per verifiche e confronti;
 - `scripts/test.sh`: `swift test` con i flag della toolchain;
-- `scripts/build-app.sh`: `swift build -c release`, assemblaggio del bundle `FitsCull.app` (`Info.plist`, icona `.icns` creata con `iconutil`), firma ad-hoc (`codesign -s -`), copia in `/Volumes/Dati2/applicazioni/`.
+- `scripts/build-app.sh`: compilazione release, bundle `FitsCull.app` (`Info.plist` versione 1.0.0, icona `.icns` generata da `scripts/make-icon.sh`), firma ad-hoc, copia in `/Volumes/Dati2/applicazioni/`.
 
-Nessuna distribuzione su App Store.
+Nessuna distribuzione su App Store. Al primo avvio: clic destro → Apri (firma ad-hoc).
 
 ## 8. Test
 
-Swift Testing, eseguibili da terminale con `scripts/test.sh`:
+97 test Swift Testing, eseguibili con `scripts/test.sh`:
 
-- `FITSReader`: FITS sintetici generati nei test (BITPIX 8/16/32/−32, BZERO/BSCALE), header reale ASIAIR e N.I.N.A. come fixture, header danneggiati.
-- `FrameMeta`: mappatura delle chiavi dei due software, calcolo scala (ASI2600MC + 412 mm → 1,88″/px).
-- `FrameDecoder`: matrici CFA note per tutti e quattro i pattern.
-- `Statistics`: array con valori noti (mediana, MAD, saturi).
-- `StarDetector`: campi sintetici di gaussiane con numero, FWHM ed eccentricità noti, con rumore; tolleranza ±5% su FWHM, conteggio esatto per stelle ben separate.
-- `AutoStretch`: mediana in uscita ≈ 0,25.
-- `SessionStore`: regole dei valori anomali.
-- `TrashService`: su cartella temporanea; percorso di ripiego simulato.
+- `FITSReader`: FITS sintetici (BITPIX 8/16/32/−32, BZERO/BSCALE), cubi, HDU vuota, BITPIX −64, file troncati, lettura del solo header, lettura non mappata.
+- `FrameMeta`: header reali ASIAIR e N.I.N.A., scala, tipi di immagine e `hasStars`.
+- `FrameDecoder`: superpixel per i quattro pattern, ricostruzione a piena risoluzione, riduzione 2×2, canali CFA.
+- `Statistics` / `RobustStats`: valori noti, valori non finiti, saturi, dati interi estesi.
+- `StarDetector`: campi sintetici di gaussiane (numero esatto, FWHM ±5%, eccentricità), fondo con gradiente, campo vuoto, stelle sature, immagini minuscole.
+- `FrameAnalyzer`: file a colori, mono, di calibrazione (nessuna metrica stellare), senza tipo, anteprima e piena risoluzione.
+- `FolderScanner`, `MetricsCache` (file modificati, NaN, analisi senza stelle, versione v2), `OutlierRules` (tutte le soglie §5.1), `TrashService` (Cestino simulato non disponibile, `_scartati/`, eliminazione), `AnalysisOrder`, `SelectionPolicy`.
 
 ## 9. Validazione su dati reali
 
-Su almeno 10 light reali della ASI2600MC, confronto con PixInsight:
+Risultati completi in `docs/validation-2026-10-11.md`. Sintesi:
 
-| Metrica | Riferimento PixInsight | Tolleranza |
-|---|---|---|
-| Fondo (mediana per canale) | Statistics sui canali CFA | ±1% |
-| Rumore | Statistics (MAD × 1,4826) | ±5% |
-| FWHM | SubframeSelector | ±15% |
-| Numero stelle | SubframeSelector | stesso andamento tra i frame (correlazione), non valore assoluto |
-| Tempo di analisi | — | < 0,5 s/file da SSD |
+| Metrica | Riferimento | Tolleranza | Risultato |
+|---|---|---|---|
+| Fondo (media, mediana) | PixInsight | ±1% | ✓ coincide (verifica dell'utente) |
+| FWHM | PixInsight FWHMEccentricity (Moffat4), 5 light mono L | ±15% | ✓ FitsCull +9,1…+11% in modo costante; stesso ordine e stessi salti tra i frame |
+| Eccentricità | idem | — | FitsCull +6…+12% in modo costante (soglia 0,75 tarata di conseguenza) |
+| Numero stelle | idem | stesso andamento | ✓ stesso andamento; valore assoluto +32…+40% (criteri di conteggio diversi) |
+| Tempo di analisi | — | < 0,5 s/file da SSD | ✓ 0,21–0,32 s/file sui file a colori ASI2600MC; mono giudicato "ottimo" dall'utente, da misurare con `fcanalyze` |
+| Zoom 100% | — | — | ≈ 0,75 s (lettura e ricostruzione ≈ 0,4 s + stretch ≈ 0,35 s) |
+
+Nota metodologica: le misure di PixInsight su file **CFA non debayerizzati** non sono confrontabili (FWHM circa dimezzata); per i file a colori usare un Debayer prima del confronto.
+
+## 10. Stato della v1 e lavori futuri
+
+Decisioni prese dopo il piano iniziale (dettagli in `CHANGELOG.md`): metriche stellari solo per i light; barra di navigazione e zoom 50%/100% reale; cestino del file corrente con conferma (⌘⌫) e multiplo su ⇧⌘⌫; anteprime mono ridotte 2×2; soglie di segnalazione tolleranti scelte dall'utente (eccentricità 0,75; FWHM +25%; fondo > 3000 ADU e +30%).
+
+Rinviati alla v2 (non bloccanti):
+
+- S e L rileggono dal disco il file corrente e i vicini (lento sul NAS).
+- Il dialogo "Cestino non disponibile" raccoglie anche file falliti per altri motivi e mostra un solo motivo.
+- Mediana/MAD a istogramma: errore fino a ≈ ±4% sulla MAD con dati a 16 bit molto estesi.
+- Ordinamento cronologico non transitivo con file con e senza data mescolati.
+- Valori NAXIS assurdi in header danneggiati possono interrompere l'app.
+- "Riprova" non aggiorna dimensione e data del file; manca "Riprova tutti".
+- Motivo dell'errore visibile solo come suggerimento nella lista; i FITS compressi senza tipo sono nascosti dal filtro Light.
+- Nessuna indicazione dell'unità quando la FWHM ripiega sui pixel.
+- Le scorciatoie senza modificatori agiscono anche nei campi delle soglie.
+- La cache delle metriche non viene mai ripulita.
+- I segni di scarto si perdono senza avviso cambiando cartella o chiudendo l'app.
+- Concorrenza fissa a 3; nessun trascinamento col mouse nello zoom.
+
+Idee per la v2: XISF; statistiche per dark e flat; soglie di segnalazione regolabili (anche per filtro); adattamento Moffat per FWHM allineate a PixInsight; misura dei tempi su file mono reali.
