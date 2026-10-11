@@ -1,0 +1,360 @@
+import AppKit
+import FitsCullCore
+import Observation
+import SwiftUI
+
+enum FrameStatus: Equatable {
+    case pending
+    case analyzing
+    case done
+    case failed(String)
+}
+
+struct FrameRecord: Identifiable {
+    let id: URL
+    /// Posizione cronologica nella cartella (1…n).
+    let index: Int
+    var file: FrameFile
+    var header: FITSHeader?
+    var meta: FrameMeta?
+    var analysis: FrameAnalysis?
+    var status: FrameStatus
+    var rejected = false
+    var flags: OutlierFlags = []
+}
+
+struct Preview: @unchecked Sendable {
+    let image: CGImage
+    let histogram: DisplayHistogram
+}
+
+enum ViewMode: String, CaseIterable {
+    case review = "Revisione"
+    case session = "Sessione"
+}
+
+enum SortKey: String, CaseIterable {
+    case date = "Data"
+    case fwhm = "FWHM"
+    case stars = "Stelle"
+    case background = "Fondo"
+}
+
+@MainActor
+@Observable
+final class SessionModel {
+    var folder: URL?
+    var records: [FrameRecord] = []
+    var selection: URL? {
+        didSet { if selection != oldValue { selectionChanged() } }
+    }
+    var typeFilter: ImageType? = .light {
+        didSet { refreshSummary(); pump() }
+    }
+    var sortKey: SortKey = .date
+    var viewMode: ViewMode = .review
+    var stretchEnabled = true {
+        didSet { invalidatePreviews() }
+    }
+    var linkedChannels = true {
+        didSet { invalidatePreviews() }
+    }
+    var actualSize = false
+    var summary: SessionSummary?
+    var thresholds = Thresholds()
+    var previews: [URL: Preview] = [:]
+    var loadingMessage: String?
+    var errorMessage: String?
+
+    let concurrency = 3
+    let previewRadius = 5
+    let cache = MetricsCache(directory: MetricsCache.defaultDirectory())
+
+    @ObservationIgnored private var currentSource: (url: URL, source: PreviewSource)?
+    @ObservationIgnored private var analysesInFlight: Set<URL> = []
+    @ObservationIgnored private var previewsInFlight: Set<URL> = []
+    @ObservationIgnored private var activeJobs = 0
+    @ObservationIgnored private var generation = 0
+    @ObservationIgnored private var renderVersion = 0
+
+    // MARK: - Viste derivate
+
+    func isVisible(_ record: FrameRecord) -> Bool {
+        typeFilter == nil || record.meta == nil || record.meta?.imageType == typeFilter
+    }
+
+    var visibleRecords: [FrameRecord] {
+        let list = records.filter(isVisible)
+        switch sortKey {
+        case .date:
+            return list
+        case .fwhm:
+            return list.sorted { ($0.analysis?.stars.fwhm ?? .infinity) < ($1.analysis?.stars.fwhm ?? .infinity) }
+        case .stars:
+            return list.sorted { ($0.analysis?.stars.count ?? -1) > ($1.analysis?.stars.count ?? -1) }
+        case .background:
+            return list.sorted { ($0.analysis?.background ?? .infinity) < ($1.analysis?.background ?? .infinity) }
+        }
+    }
+
+    var selectedRecord: FrameRecord? {
+        selection.flatMap { id in records.first { $0.id == id } }
+    }
+
+    var rejectedCount: Int { records.filter(\.rejected).count }
+
+    var totalBytes: Int64 { records.reduce(0) { $0 + $1.file.size } }
+
+    var availableTypes: [ImageType] {
+        ImageType.allCases.filter { type in records.contains { $0.meta?.imageType == type } }
+    }
+
+    // MARK: - Azioni
+
+    func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Apri"
+        if panel.runModal() == .OK, let url = panel.url { open(url) }
+    }
+
+    func open(_ url: URL) {
+        saveCache()
+        generation += 1
+        let gen = generation
+        folder = url
+        records = []
+        previews = [:]
+        currentSource = nil
+        analysesInFlight = []
+        previewsInFlight = []
+        summary = nil
+        selection = nil
+        loadingMessage = "Lettura intestazioni…"
+        Task {
+            let result = await Task.detached(priority: .userInitiated) {
+                Result(catching: { try FolderScanner.scan(url) })
+            }.value
+            guard gen == generation else { return }
+            loadingMessage = nil
+            switch result {
+            case .failure(let error):
+                errorMessage = UserMessage.from(error)
+            case .success(let scanned):
+                records = scanned.enumerated().map { i, s in
+                    let cached = s.meta == nil ? nil : cache.lookup(s.file)
+                    let status: FrameStatus = if let e = s.headerError { .failed(e) } else if cached != nil { .done } else { .pending }
+                    return FrameRecord(id: s.file.url, index: i + 1, file: s.file, header: s.header, meta: s.meta,
+                                       analysis: cached, status: status)
+                }
+                if records.isEmpty { errorMessage = "Nessun file FITS (.fit, .fits, .fts) in questa cartella." }
+                if let type = typeFilter, !records.contains(where: { $0.meta?.imageType == type }) { typeFilter = nil }
+                refreshSummary()
+                selection = visibleRecords.first?.id
+                pump()
+            }
+        }
+    }
+
+    func move(_ delta: Int) {
+        let list = visibleRecords
+        guard !list.isEmpty else { return }
+        let i = list.firstIndex { $0.id == selection } ?? 0
+        selection = list[min(max(i + delta, 0), list.count - 1)].id
+    }
+
+    func toggleReject() {
+        guard let id = selection else { return }
+        update(id) { $0.rejected.toggle() }
+    }
+
+    func saveCache() {
+        try? cache.save()
+    }
+
+    /// Rilegge l'header (es. NAS ricollegato) e rimette il file in coda.
+    func retry(_ url: URL) {
+        Task {
+            let header = await Task.detached(priority: .userInitiated) { try? FITSReader.readHeader(url: url) }.value
+            update(url) { record in
+                if let header {
+                    record.header = header
+                    record.meta = FrameMeta(header: header)
+                    record.status = .pending
+                } else {
+                    record.status = .failed("file non leggibile (disco o NAS scollegato?)")
+                }
+            }
+            pump()
+        }
+    }
+
+    // MARK: - Scheduling dell'analisi
+
+    private enum Job {
+        case analyze(URL, withPreview: Bool)
+        case preview(URL)
+    }
+
+    private func selectionChanged() {
+        actualSize = false
+        let window = Set(previewWindow())
+        previews = previews.filter { window.contains($0.key) }
+        if currentSource?.url != selection { currentSource = nil }
+        pump()
+    }
+
+    private func previewWindow() -> [URL] {
+        let list = visibleRecords
+        let position = list.firstIndex { $0.id == selection }
+        return AnalysisOrder.window(count: list.count, around: position, radius: previewRadius).map { list[$0].id }
+    }
+
+    private func analysisQueue() -> [URL] {
+        let list = visibleRecords
+        let position = list.firstIndex { $0.id == selection }
+        let near = AnalysisOrder.indices(count: list.count, around: position).map { list[$0].id }
+        return near + records.filter { !isVisible($0) }.map(\.id)
+    }
+
+    private func nextJob() -> Job? {
+        let lookup = Dictionary(uniqueKeysWithValues: records.map { ($0.id, $0) })
+        let window = previewWindow()
+        func needsPreview(_ url: URL) -> Bool {
+            previews[url] == nil && !previewsInFlight.contains(url) && !analysesInFlight.contains(url)
+        }
+        if let selected = selection, let record = lookup[selected], needsPreview(selected) {
+            switch record.status {
+            case .pending: return .analyze(selected, withPreview: true)
+            case .done: return .preview(selected)
+            default: break
+            }
+        }
+        for url in analysisQueue() where lookup[url]?.status == .pending && !analysesInFlight.contains(url) {
+            return .analyze(url, withPreview: window.contains(url) && needsPreview(url))
+        }
+        for url in window where lookup[url]?.status == .done && needsPreview(url) {
+            return .preview(url)
+        }
+        return nil
+    }
+
+    private func pump() {
+        while activeJobs < concurrency, let job = nextJob() { start(job) }
+        if activeJobs == 0 { saveCache() }
+    }
+
+    private func start(_ job: Job) {
+        activeJobs += 1
+        let gen = generation
+        switch job {
+        case .analyze(let url, let withPreview):
+            analysesInFlight.insert(url)
+            if withPreview { previewsInFlight.insert(url) }
+            update(url) { $0.status = .analyzing }
+            Task {
+                let result = await Task.detached(priority: .userInitiated) {
+                    Result(catching: { try FrameAnalyzer.analyze(url: url, includePreview: withPreview) })
+                }.value
+                self.finishAnalysis(url, result, generation: gen)
+            }
+        case .preview(let url):
+            previewsInFlight.insert(url)
+            Task {
+                let result = await Task.detached(priority: .userInitiated) {
+                    Result(catching: { try FrameAnalyzer.preview(url: url) })
+                }.value
+                self.finishPreview(url, result, generation: gen)
+            }
+        }
+    }
+
+    private func finishAnalysis(_ url: URL, _ result: Result<(analysis: FrameAnalysis, preview: PreviewSource?), Error>,
+                                generation gen: Int) {
+        activeJobs -= 1
+        guard gen == generation else { pump(); return }
+        analysesInFlight.remove(url)
+        switch result {
+        case .success(let output):
+            update(url) {
+                $0.analysis = output.analysis
+                $0.status = .done
+            }
+            if let file = records.first(where: { $0.id == url })?.file { cache.store(output.analysis, for: file) }
+            refreshSummary()
+            if let source = output.preview { render(url, source) } else { previewsInFlight.remove(url) }
+        case .failure(let error):
+            previewsInFlight.remove(url)
+            update(url) { $0.status = .failed(UserMessage.from(error)) }
+        }
+        pump()
+    }
+
+    private func finishPreview(_ url: URL, _ result: Result<PreviewSource, Error>, generation gen: Int) {
+        activeJobs -= 1
+        guard gen == generation else { pump(); return }
+        switch result {
+        case .success(let source):
+            render(url, source)
+        case .failure(let error):
+            previewsInFlight.remove(url)
+            update(url) { $0.status = .failed(UserMessage.from(error)) }
+        }
+        pump()
+    }
+
+    /// Stretch fuori dal main thread; `url` deve essere già in `previewsInFlight`.
+    private func render(_ url: URL, _ source: PreviewSource) {
+        if url == selection { currentSource = (url, source) }
+        let gen = generation, version = renderVersion
+        let stretch = stretchEnabled, linked = linkedChannels
+        Task {
+            let preview = await Task.detached(priority: .userInitiated) {
+                SessionModel.makePreview(source, stretch: stretch, linked: linked)
+            }.value
+            guard gen == generation else { return }
+            previewsInFlight.remove(url)
+            if version == renderVersion, let preview, previewWindow().contains(url) { previews[url] = preview }
+            pump()
+        }
+    }
+
+    nonisolated static func makePreview(_ source: PreviewSource, stretch: Bool, linked: Bool) -> Preview? {
+        let stretched = AutoStretch.stretch(source.image, normalization: source.normalization, linked: linked, enabled: stretch)
+        guard let image = AutoStretch.cgImage(stretched) else { return nil }
+        return Preview(image: image, histogram: DisplayHistogram(stretched, isColor: source.image.isColor))
+    }
+
+    private func invalidatePreviews() {
+        renderVersion += 1
+        previews = [:]
+        if let current = currentSource, current.url == selection, !previewsInFlight.contains(current.url) {
+            previewsInFlight.insert(current.url)
+            render(current.url, current.source)
+        }
+        pump()
+    }
+
+    // MARK: - Supporto
+
+    func update(_ url: URL, _ change: (inout FrameRecord) -> Void) {
+        guard let i = records.firstIndex(where: { $0.id == url }) else { return }
+        change(&records[i])
+    }
+
+    func refreshSummary() {
+        let newSummary = OutlierRules.summary(records.filter(isVisible).compactMap(\.analysis))
+        var updated = records
+        for i in updated.indices {
+            if let s = newSummary, let a = updated[i].analysis {
+                updated[i].flags = OutlierRules.flags(for: a, in: s)
+            } else {
+                updated[i].flags = []
+            }
+        }
+        summary = newSummary
+        records = updated
+    }
+}
