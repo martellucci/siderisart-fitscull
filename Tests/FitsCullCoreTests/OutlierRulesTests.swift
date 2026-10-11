@@ -1,0 +1,52 @@
+import FitsCullCore
+import Foundation
+import Testing
+
+@Suite struct OutlierRulesTests {
+    static var normal: [FrameAnalysis] {
+        (0..<10).map { AnalysisFactory.make(background: 1850 + Double($0), stars: 400 - $0, fwhm: 3.0 + 0.02 * Double($0)) }
+    }
+    static let cloud = AnalysisFactory.make(background: 2600, stars: 120, fwhm: 6.0)
+
+    @Test func summaryUsesMedians() throws {
+        let s = try #require(OutlierRules.summary(Self.normal + [Self.cloud]))
+        #expect(abs(s.medianBackground - 1855) < 0.001)
+        #expect(s.medianStars == 395)
+        #expect(abs((s.medianFWHM ?? 0) - 3.1) < 0.001)
+    }
+
+    @Test func cloudyFrameIsFlagged() throws {
+        let s = try #require(OutlierRules.summary(Self.normal + [Self.cloud]))
+        #expect(OutlierRules.flags(for: Self.cloud, in: s) == [.background, .stars, .fwhm])
+        #expect(OutlierRules.flags(for: Self.normal[3], in: s).isEmpty)
+    }
+
+    @Test func zeroStarFrameIsFlaggedNotCrashing() throws {
+        let empty = AnalysisFactory.make(background: 1860, stars: 0, fwhm: nil)
+        let s = try #require(OutlierRules.summary(Self.normal + [empty]))
+        #expect(OutlierRules.flags(for: empty, in: s) == [.stars])
+    }
+
+    @Test func eccentricityFlag() throws {
+        let trailed = AnalysisFactory.make(background: 1850, stars: 395, fwhm: 3.1, eccentricity: 0.7)
+        let s = try #require(OutlierRules.summary(Self.normal))
+        #expect(OutlierRules.flags(for: trailed, in: s) == [.eccentricity])
+    }
+
+    @Test func emptySessionHasNoSummary() {
+        #expect(OutlierRules.summary([]) == nil)
+    }
+
+    @Test func thresholds() {
+        let normal = Self.normal[0]  // FWHM 3 px = 5,64″
+        #expect(!Thresholds().violates(Self.cloud))
+        #expect(Thresholds(maxFWHM: 8).violates(Self.cloud))
+        #expect(!Thresholds(maxFWHM: 8).violates(normal))
+        #expect(Thresholds(minStars: 200).violates(Self.cloud))
+        #expect(Thresholds(maxBackground: 2000).violates(Self.cloud))
+        #expect(Thresholds(maxEccentricity: 0.2).violates(normal))
+        let empty = AnalysisFactory.make(background: 1850, stars: 0, fwhm: nil)
+        #expect(!Thresholds(maxFWHM: 8).violates(empty))
+        #expect(Thresholds(minStars: 10).violates(empty))
+    }
+}
