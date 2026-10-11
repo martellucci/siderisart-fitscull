@@ -39,7 +39,9 @@ import Testing
         #expect(analysis.channels.count == 1)
         #expect(analysis.channelNames == ["L"])
         #expect(analysis.stars?.count == 16)
-        #expect(preview?.image.binFactor == 1)
+        // Stelle misurate a piena risoluzione, anteprima ridotta a metà come per i file a colori.
+        #expect(preview?.image.width == 128 && preview?.image.height == 128)
+        #expect(preview?.image.binFactor == 2)
         #expect(preview?.image.isColor == false)
     }
 
@@ -64,6 +66,12 @@ import Testing
         let url = try FITSFixture.write(Self.file(bayer: true))
         let source = try FrameAnalyzer.preview(url: url)
         #expect(source.image.width == 128)
+    }
+
+    @Test func monoPreviewAndFullResolution() throws {
+        let url = try FITSFixture.write(Self.file(bayer: false))
+        #expect(try FrameAnalyzer.preview(url: url).image.width == 128)
+        #expect(try FrameAnalyzer.fullResolution(url: url).image.width == 256)
     }
 
     @Test func fullResolutionForZoom100() throws {

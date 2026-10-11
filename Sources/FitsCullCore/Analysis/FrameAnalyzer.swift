@@ -50,14 +50,20 @@ public enum FrameAnalyzer {
                                   arcsecPerPixel: meta.pixelScale.map { $0 * Double(planar.binFactor) })
             : nil
         let analysis = FrameAnalysis(meta: meta, channels: channels, stars: stars)
-        return (analysis, includePreview ? PreviewSource(image: planar, normalization: normalization(fits)) : nil)
+        return (analysis, includePreview ? PreviewSource(image: display(planar), normalization: normalization(fits)) : nil)
     }
 
     /// Solo decodifica, per file già analizzati (metriche in cache).
     public static func preview(url: URL) throws -> PreviewSource {
         let fits = try FITSReader.read(url: url)
         let pattern = FrameMeta(header: fits.header).bayerPattern.flatMap(BayerPattern.init(rawValue:))
-        return PreviewSource(image: FrameDecoder.decode(fits, pattern: pattern), normalization: normalization(fits))
+        return PreviewSource(image: display(FrameDecoder.decode(fits, pattern: pattern)), normalization: normalization(fits))
+    }
+
+    /// Anteprima sempre a metà risoluzione: i mono (piena risoluzione dopo la decodifica) si riducono 2×2,
+    /// così lo zoom 50% è corretto e ogni anteprima occupa ~26 MB anche per i mono.
+    static func display(_ planar: PlanarImage) -> PlanarImage {
+        planar.binFactor == 1 ? FrameDecoder.binned2x2(planar) : planar
     }
 
     /// Colore ricostruito a piena risoluzione del sensore, per lo zoom 100% del solo file corrente.

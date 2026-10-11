@@ -79,6 +79,15 @@ import Testing
         #expect(planar.planes == [[1, 2, 3, 4]])
     }
 
+    /// Anteprima dei mono: media 2×2 solo per la visualizzazione (memoria e zoom 50% corretti).
+    @Test func binned2x2Averages() {
+        let planar = PlanarImage(width: 4, height: 2, binFactor: 1, planes: [[1, 2, 3, 4, 5, 6, 7, 8]])
+        let binned = FrameDecoder.binned2x2(planar)
+        #expect(binned.width == 2 && binned.height == 1)
+        #expect(binned.binFactor == 2)
+        #expect(binned.planes == [[3.5, 5.5]])
+    }
+
     @Test func luminanceAveragesChannels() {
         let planar = PlanarImage(width: 1, height: 1, binFactor: 2, planes: [[3], [6], [9]])
         #expect(planar.luminance() == [6])

@@ -49,6 +49,25 @@ public enum FrameDecoder {
         return PlanarImage(width: w, height: h, binFactor: 2, planes: [r, g, b])
     }
 
+    /// Media 2×2 di ogni piano (dimensioni dispari troncate), per le anteprime dei mono.
+    public static func binned2x2(_ image: PlanarImage) -> PlanarImage {
+        let w = image.width / 2, h = image.height / 2
+        let planes = image.planes.map { plane -> [Float] in
+            var out = [Float](repeating: 0, count: w * h)
+            plane.withUnsafeBufferPointer { src in
+                for y in 0..<h {
+                    for x in 0..<w {
+                        let base = 2 * y * image.width + 2 * x
+                        out[y * w + x] = (src[base] + src[base + 1] + src[base + image.width]
+                                          + src[base + image.width + 1]) * 0.25
+                    }
+                }
+            }
+            return out
+        }
+        return PlanarImage(width: w, height: h, binFactor: image.binFactor * 2, planes: planes)
+    }
+
     /// Ricostruzione bilineare a piena risoluzione (zoom 100%): ogni colore mancante è la media dei
     /// campioni dello stesso colore nell'intorno 3×3. Mono invariato.
     public static func demosaic(_ image: FITSImage, pattern: BayerPattern?) -> PlanarImage {
