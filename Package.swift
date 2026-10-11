@@ -6,6 +6,7 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "FitsCull", targets: ["FitsCull"]),
+        .executable(name: "fcanalyze", targets: ["fcanalyze"]),
     ],
     targets: [
         .target(name: "FitsCullCore"),
@@ -14,6 +15,7 @@ let package = Package(
             dependencies: ["FitsCullCore"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
+        .executableTarget(name: "fcanalyze", dependencies: ["FitsCullCore"]),
         .testTarget(name: "FitsCullCoreTests", dependencies: ["FitsCullCore"]),
     ]
 )
