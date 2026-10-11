@@ -23,7 +23,8 @@ Criteri di successo:
 | Posizione dei file | disco interno o esterno, NAS in LAN (SMB) |
 | Installazione app | `/Volumes/Dati2/applicazioni/FitsCull.app` |
 | Sorgenti | `~/Documents/FitsCull` (repository git) |
-| Prerequisito | **Xcode 26** installato e licenza accettata: i Command Line Tools presenti (16.3, SDK 15.4) non compilano per macOS 26 |
+| Toolchain | Command Line Tools for Xcode 26.6 (Swift 6.3.3, SDK 26.5) + VS Code con estensione Swift; **Xcode non richiesto** |
+| Nota toolchain | I test con Swift Testing richiedono `-F`/`-rpath` verso `/Library/Developer/CommandLineTools/Library/Developer/Frameworks`: inclusi negli script |
 
 ## 3. Perimetro
 
@@ -139,11 +140,18 @@ Grafici (Swift Charts) di FWHM″, numero stelle, fondo ed eccentricità in funz
 
 ## 7. Distribuzione
 
-Progetto Xcode in `~/Documents/FitsCull`. Compilazione Release con `xcodebuild`, firma ad-hoc locale, copia di `FitsCull.app` in `/Volumes/Dati2/applicazioni/`. Nessuna distribuzione su App Store.
+Pacchetto Swift (SwiftPM) in `~/Documents/FitsCull`:
+
+- `FitsCullCore` (libreria): tutto il codice non grafico (§4.1 tranne l'interfaccia), interamente testabile;
+- `FitsCull` (eseguibile SwiftUI): interfaccia e ciclo di vita dell'app, dipende da `FitsCullCore`;
+- `scripts/test.sh`: `swift test` con i flag della toolchain;
+- `scripts/build-app.sh`: `swift build -c release`, assemblaggio del bundle `FitsCull.app` (`Info.plist`, icona `.icns` creata con `iconutil`), firma ad-hoc (`codesign -s -`), copia in `/Volumes/Dati2/applicazioni/`.
+
+Nessuna distribuzione su App Store.
 
 ## 8. Test
 
-Swift Testing, eseguibili da terminale con `xcodebuild test`:
+Swift Testing, eseguibili da terminale con `scripts/test.sh`:
 
 - `FITSReader`: FITS sintetici generati nei test (BITPIX 8/16/32/−32, BZERO/BSCALE), header reale ASIAIR e N.I.N.A. come fixture, header danneggiati.
 - `FrameMeta`: mappatura delle chiavi dei due software, calcolo scala (ASI2600MC + 412 mm → 1,88″/px).
