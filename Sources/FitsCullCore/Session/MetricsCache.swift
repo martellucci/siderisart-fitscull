@@ -8,13 +8,16 @@ public final class MetricsCache: @unchecked Sendable {
         let analysis: FrameAnalysis
     }
 
+    /// v2: metriche stellari opzionali (le analisi v1 di dark/flat contenevano stelle spurie).
+    public static let fileName = "metrics-v2.json"
+
     private let fileURL: URL
     private let lock = NSLock()
     private var entries: [String: Entry] = [:]
     private var dirty = false
 
     public init(directory: URL) {
-        fileURL = directory.appendingPathComponent("metrics-v1.json")
+        fileURL = directory.appendingPathComponent(Self.fileName)
         if let data = try? Data(contentsOf: fileURL),
            let decoded = try? Self.makeDecoder().decode([String: Entry].self, from: data) {
             entries = decoded

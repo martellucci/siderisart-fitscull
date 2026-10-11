@@ -8,10 +8,11 @@ import Testing
         [40.0, 98, 156, 214].map { x in SyntheticStar(x: x, y: y, amplitude: 3000, sigmaX: 3, sigmaY: 3) }
     }
 
-    static func file(bayer: Bool) -> Data {
+    static func file(bayer: Bool, imageType: String? = "Light") -> Data {
         let field = SyntheticField.make(width: 256, height: 256, background: { _, _ in 1500 }, noise: 8, stars: stars)
-        var extra = [FITSFixture.kv("IMAGETYP", "'Light'"), FITSFixture.kv("XPIXSZ", "3.76"),
-                     FITSFixture.kv("FOCALLEN", "412"), FITSFixture.kv("EXPTIME", "120.")]
+        var extra = [FITSFixture.kv("XPIXSZ", "3.76"), FITSFixture.kv("FOCALLEN", "412"),
+                     FITSFixture.kv("EXPTIME", "120.")]
+        if let imageType { extra.append(FITSFixture.kv("IMAGETYP", "'\(imageType)'")) }
         if bayer { extra.append(FITSFixture.kv("BAYERPAT", "'RGGB'")) }
         return FITSFixture.image(bitpix: 16, width: 256, height: 256, pixels: field.map(Double.init),
                                  bzero: 32768, extra: extra)
@@ -24,9 +25,9 @@ import Testing
         #expect(analysis.channelNames == ["R", "G", "B"])
         #expect(analysis.meta.imageType == .light)
         #expect(abs(analysis.background - 1500) < 5)
-        #expect(analysis.stars.count == 16)
+        #expect(analysis.stars?.count == 16)
         let scale = try #require(analysis.meta.pixelScale)
-        #expect(abs((analysis.stars.fwhmArcsec ?? 0) - (analysis.stars.fwhm ?? 0) * scale * 2) < 1e-9)
+        #expect(abs((analysis.stars?.fwhmArcsec ?? 0) - (analysis.stars?.fwhm ?? 0) * scale * 2) < 1e-9)
         let p = try #require(preview)
         #expect(p.image.width == 128 && p.image.height == 128 && p.image.isColor)
         #expect(p.normalization == 65535)
@@ -37,9 +38,26 @@ import Testing
         let (analysis, preview) = try FrameAnalyzer.analyze(url: url, includePreview: true)
         #expect(analysis.channels.count == 1)
         #expect(analysis.channelNames == ["L"])
-        #expect(analysis.stars.count == 16)
+        #expect(analysis.stars?.count == 16)
         #expect(preview?.image.binFactor == 1)
         #expect(preview?.image.isColor == false)
+    }
+
+    /// Nei file di calibrazione le metriche stellari non si calcolano, anche se l'immagine contiene
+    /// strutture puntiformi (pixel caldi nei dark, polvere nei flat).
+    @Test(arguments: ["Dark", "Flat", "Bias", "Dark Flat"])
+    func calibrationFramesHaveNoStarMetrics(imageType: String) throws {
+        let url = try FITSFixture.write(Self.file(bayer: true, imageType: imageType))
+        let (analysis, _) = try FrameAnalyzer.analyze(url: url, includePreview: false)
+        #expect(analysis.stars == nil)
+        #expect(analysis.channels.count == 3)
+    }
+
+    @Test func fileWithoutImageTypeStillMeasuresStars() throws {
+        let url = try FITSFixture.write(Self.file(bayer: true, imageType: nil))
+        let (analysis, _) = try FrameAnalyzer.analyze(url: url, includePreview: false)
+        #expect(analysis.meta.imageType == .unknown)
+        #expect(analysis.stars?.count == 16)
     }
 
     @Test func previewWithoutAnalysis() throws {

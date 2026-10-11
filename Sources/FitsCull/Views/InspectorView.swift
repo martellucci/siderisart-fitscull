@@ -17,7 +17,9 @@ struct InspectorView: View {
                     }
                     if let analysis = record.analysis {
                         section("STATISTICHE") { StatsGrid(analysis: analysis) }
-                        section("STELLE") { StarsGrid(stars: analysis.stars) }
+                        if let stars = analysis.stars {
+                            section("STELLE") { StarsGrid(stars: stars) }
+                        }
                         if !record.flags.isEmpty {
                             Label(Format.flags(record.flags), systemImage: "exclamationmark.triangle")
                                 .font(.caption).foregroundStyle(.orange)

@@ -38,8 +38,8 @@ for url in urls {
         let (a, _) = try FrameAnalyzer.analyze(url: url, includePreview: false)
         let ms = Int(Date().timeIntervalSince(start) * 1000)
         print([url.lastPathComponent, a.meta.imageType.label, format(a.meta.exposure, 0), format(a.background, 1),
-               format(a.noise, 1), format(a.saturatedFraction.map { $0 * 100 }, 3), "\(a.stars.count)",
-               format(a.stars.fwhm, 2), format(a.stars.fwhmArcsec, 2), format(a.stars.eccentricity, 2), "\(ms)"]
+               format(a.noise, 1), format(a.saturatedFraction.map { $0 * 100 }, 3), a.stars.map { "\($0.count)" } ?? "-",
+               format(a.stars?.fwhm, 2), format(a.stars?.fwhmArcsec, 2), format(a.stars?.eccentricity, 2), "\(ms)"]
             .joined(separator: "\t"))
     } catch {
         let message = (error as? FITSError)?.description ?? error.localizedDescription

@@ -20,16 +20,16 @@ struct FrameListView: View {
             }
             .width(52)
             TableColumn("FWHM″") { r in
-                FlaggedCell(text: Format.number(r.analysis?.stars.fwhmArcsec ?? r.analysis?.stars.fwhm, digits: 2),
+                FlaggedCell(text: Format.number(r.analysis?.stars?.fwhmArcsec ?? r.analysis?.stars?.fwhm, digits: 2),
                             flagged: r.flags.contains(.fwhm))
             }
             .width(52)
             TableColumn("★") { r in
-                FlaggedCell(text: r.analysis.map { "\($0.stars.count)" } ?? "–", flagged: r.flags.contains(.stars))
+                FlaggedCell(text: r.analysis?.stars.map { "\($0.count)" } ?? "–", flagged: r.flags.contains(.stars))
             }
             .width(44)
             TableColumn("Ecc") { r in
-                FlaggedCell(text: Format.number(r.analysis?.stars.eccentricity, digits: 2), flagged: r.flags.contains(.eccentricity))
+                FlaggedCell(text: Format.number(r.analysis?.stars?.eccentricity, digits: 2), flagged: r.flags.contains(.eccentricity))
             }
             .width(40)
             TableColumn("Stato") { r in StatusBadge(record: r) }

@@ -17,13 +17,13 @@ struct SessionChartsView: View {
         HStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 18) {
-                    MetricChart(title: "FWHM (″)", points: points { $0.stars.fwhmArcsec ?? $0.stars.fwhm },
+                    MetricChart(title: "FWHM (″)", points: points { $0.stars?.fwhmArcsec ?? $0.stars?.fwhm },
                                 threshold: model.thresholds.maxFWHM, onPick: open)
-                    MetricChart(title: "Stelle", points: points { Double($0.stars.count) },
+                    MetricChart(title: "Stelle", points: points { $0.stars.map { Double($0.count) } },
                                 threshold: model.thresholds.minStars.map(Double.init), onPick: open)
                     MetricChart(title: "Fondo (ADU)", points: points { $0.background },
                                 threshold: model.thresholds.maxBackground, onPick: open)
-                    MetricChart(title: "Eccentricità", points: points { $0.stars.eccentricity },
+                    MetricChart(title: "Eccentricità", points: points { $0.stars?.eccentricity },
                                 threshold: model.thresholds.maxEccentricity, onPick: open)
                 }
                 .padding()

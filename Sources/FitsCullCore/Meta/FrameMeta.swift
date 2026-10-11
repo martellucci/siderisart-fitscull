@@ -13,6 +13,9 @@ public enum ImageType: String, Sendable, Codable, CaseIterable {
         else { self = .unknown }
     }
 
+    /// Le metriche stellari hanno senso solo per i light (e per i file senza tipo, che potrebbero esserlo).
+    public var hasStars: Bool { self == .light || self == .unknown }
+
     public var label: String {
         switch self {
         case .light: "Light"

@@ -25,21 +25,23 @@ public enum OutlierRules {
 
     public static func summary(_ analyses: [FrameAnalysis]) -> SessionSummary? {
         guard !analyses.isEmpty else { return nil }
-        let fwhms = analyses.compactMap(\.stars.fwhm)
+        let measured = analyses.compactMap(\.stars)
+        let fwhms = measured.compactMap(\.fwhm)
         let medianFWHM = fwhms.isEmpty ? nil : RobustStats.exactMedian(fwhms)
         let sigmaFWHM = medianFWHM.map { m in 1.4826 * RobustStats.exactMedian(fwhms.map { abs($0 - m) }) }
         return SessionSummary(medianBackground: RobustStats.exactMedian(analyses.map(\.background)),
-                              medianStars: RobustStats.exactMedian(analyses.map { Double($0.stars.count) }),
+                              medianStars: measured.isEmpty ? 0 : RobustStats.exactMedian(measured.map { Double($0.count) }),
                               medianFWHM: medianFWHM, sigmaFWHM: sigmaFWHM)
     }
 
     public static func flags(for a: FrameAnalysis, in s: SessionSummary) -> OutlierFlags {
         var flags: OutlierFlags = []
         if s.medianBackground > 0, a.background > s.medianBackground * backgroundRatio { flags.insert(.background) }
-        if s.medianStars > 0, Double(a.stars.count) < s.medianStars * starsRatio { flags.insert(.stars) }
-        if let m = s.medianFWHM, let sd = s.sigmaFWHM, let v = a.stars.fwhm,
+        guard let stars = a.stars else { return flags }
+        if s.medianStars > 0, Double(stars.count) < s.medianStars * starsRatio { flags.insert(.stars) }
+        if let m = s.medianFWHM, let sd = s.sigmaFWHM, let v = stars.fwhm,
            v > m + fwhmSigmas * max(sd, 0.05 * m) { flags.insert(.fwhm) }
-        if let e = a.stars.eccentricity, e > maxEccentricity { flags.insert(.eccentricity) }
+        if let e = stars.eccentricity, e > maxEccentricity { flags.insert(.eccentricity) }
         return flags
     }
 }
@@ -60,10 +62,11 @@ public struct Thresholds: Sendable, Equatable, Codable {
     }
 
     public func violates(_ a: FrameAnalysis) -> Bool {
-        if let t = maxFWHM, let v = a.stars.fwhmArcsec ?? a.stars.fwhm, v > t { return true }
-        if let t = minStars, a.stars.count < t { return true }
         if let t = maxBackground, a.background > t { return true }
-        if let t = maxEccentricity, let e = a.stars.eccentricity, e > t { return true }
+        guard let stars = a.stars else { return false }
+        if let t = maxFWHM, let v = stars.fwhmArcsec ?? stars.fwhm, v > t { return true }
+        if let t = minStars, stars.count < t { return true }
+        if let t = maxEccentricity, let e = stars.eccentricity, e > t { return true }
         return false
     }
 }

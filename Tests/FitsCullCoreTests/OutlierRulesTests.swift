@@ -33,6 +33,15 @@ import Testing
         #expect(OutlierRules.flags(for: trailed, in: s) == [.eccentricity])
     }
 
+    @Test func calibrationFramesAreNeverFlaggedForStars() throws {
+        let darks = (0..<5).map { AnalysisFactory.make(background: 500 + Double($0), stars: nil, fwhm: nil) }
+        let s = try #require(OutlierRules.summary(darks))
+        #expect(s.medianFWHM == nil)
+        #expect(OutlierRules.flags(for: darks[0], in: s).isEmpty)
+        #expect(!Thresholds(maxFWHM: 1, minStars: 10, maxEccentricity: 0.1).violates(darks[0]))
+        #expect(Thresholds(maxBackground: 400).violates(darks[0]))
+    }
+
     @Test func emptySessionHasNoSummary() {
         #expect(OutlierRules.summary([]) == nil)
     }

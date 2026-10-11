@@ -4,9 +4,10 @@ public struct FrameAnalysis: Sendable, Codable, Equatable {
     public var meta: FrameMeta
     /// [R, G, B] per immagini Bayer, [L] per mono.
     public var channels: [ChannelStats]
-    public var stars: StarMetrics
+    /// nil per i file di calibrazione (dark, flat, bias): metriche stellari non applicabili.
+    public var stars: StarMetrics?
 
-    public init(meta: FrameMeta, channels: [ChannelStats], stars: StarMetrics) {
+    public init(meta: FrameMeta, channels: [ChannelStats], stars: StarMetrics?) {
         self.meta = meta
         self.channels = channels
         self.stars = stars
@@ -43,9 +44,11 @@ public enum FrameAnalyzer {
         let channels = FrameDecoder.cfaChannels(fits, pattern: pattern)
             .map { Statistics.channel($0, saturationLevel: fits.maxRepresentable) }
         let planar = FrameDecoder.decode(fits, pattern: pattern)
-        let stars = StarDetector.detect(planar.luminance(), width: planar.width, height: planar.height,
-                                        saturationLevel: fits.maxRepresentable,
-                                        arcsecPerPixel: meta.pixelScale.map { $0 * Double(planar.binFactor) })
+        let stars: StarMetrics? = meta.imageType.hasStars
+            ? StarDetector.detect(planar.luminance(), width: planar.width, height: planar.height,
+                                  saturationLevel: fits.maxRepresentable,
+                                  arcsecPerPixel: meta.pixelScale.map { $0 * Double(planar.binFactor) })
+            : nil
         let analysis = FrameAnalysis(meta: meta, channels: channels, stars: stars)
         return (analysis, includePreview ? PreviewSource(image: planar, normalization: normalization(fits)) : nil)
     }

@@ -41,7 +41,21 @@ import Testing
         try first.save()
         let loaded = try #require(MetricsCache(directory: dir).lookup(Self.file))
         #expect(loaded.channels[0].median.isNaN)
-        #expect(loaded.stars == .none)
+        #expect(loaded.stars == StarMetrics.none)
+    }
+
+    /// Le analisi salvate prima delle metriche opzionali avevano "stelle" anche nei dark: vanno ignorate.
+    @Test func usesVersion2File() {
+        #expect(MetricsCache.fileName == "metrics-v2.json")
+    }
+
+    @Test func calibrationAnalysisRoundTrips() throws {
+        let dir = try FITSFixture.tempDirectory()
+        let dark = AnalysisFactory.make(background: 500, stars: nil, fwhm: nil)
+        let first = MetricsCache(directory: dir)
+        first.store(dark, for: Self.file)
+        try first.save()
+        #expect(MetricsCache(directory: dir).lookup(Self.file) == dark)
     }
 
     @Test func removeForgetsEntry() throws {

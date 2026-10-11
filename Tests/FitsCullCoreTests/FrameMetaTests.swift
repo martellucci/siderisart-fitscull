@@ -50,6 +50,12 @@ import Testing
         #expect(ImageType(fitsValue: value) == expected)
     }
 
+    @Test func onlyLightAndUnknownHaveStars() {
+        #expect(ImageType.light.hasStars)
+        #expect(ImageType.unknown.hasStars)
+        for type in [ImageType.dark, .flat, .bias, .darkFlat] { #expect(!type.hasStars) }
+    }
+
     @Test func rejectsInvalidBayerPattern() throws {
         let meta = FrameMeta(header: try FITSHeader.parse(FITSFixture.header([
             FITSFixture.kv("SIMPLE", "T"), FITSFixture.kv("BAYERPAT", "'XYZW'"),

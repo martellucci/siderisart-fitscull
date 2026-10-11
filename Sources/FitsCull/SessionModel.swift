@@ -97,9 +97,9 @@ final class SessionModel {
         case .date:
             return list
         case .fwhm:
-            return list.sorted { ($0.analysis?.stars.fwhm ?? .infinity) < ($1.analysis?.stars.fwhm ?? .infinity) }
+            return list.sorted { ($0.analysis?.stars?.fwhm ?? .infinity) < ($1.analysis?.stars?.fwhm ?? .infinity) }
         case .stars:
-            return list.sorted { ($0.analysis?.stars.count ?? -1) > ($1.analysis?.stars.count ?? -1) }
+            return list.sorted { ($0.analysis?.stars?.count ?? -1) > ($1.analysis?.stars?.count ?? -1) }
         case .background:
             return list.sorted { ($0.analysis?.background ?? .infinity) < ($1.analysis?.background ?? .infinity) }
         }
