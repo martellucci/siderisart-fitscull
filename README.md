@@ -14,7 +14,8 @@ metriche stellari (numero, FWHM, HFR, eccentricità), vista Sessione e scarto ne
 
 ## Tastiera
 
-←/→ o ↑/↓ naviga · X scarta/ripristina · Spazio zoom 1:1 · S stretch · L canali collegati/separati ·
-⌘⌫ sposta gli scartati nel Cestino · ⌘O apri cartella · ⌘1/⌘2 Revisione/Sessione
+←/→ o ↑/↓ naviga · Inizio/Fine primo/ultimo · X scarta/ripristina · Spazio Adatta/100% · ⌘0 Adatta ·
+S stretch · L canali collegati/separati · ⌘⌫ file corrente nel Cestino · ⇧⌘⌫ tutti gli scartati nel Cestino ·
+⌘O apri cartella · ⌘1/⌘2 Revisione/Sessione
 
 Toolchain: Command Line Tools for Xcode 26.6 (Xcode non richiesto).

@@ -30,6 +30,13 @@ struct ImageCanvasView: View {
         }
     }
 
+    private func zoomed(_ image: CGImage, scale: CGFloat) -> some View {
+        ScrollView([.horizontal, .vertical]) {
+            Image(decorative: image, scale: scale).interpolation(.none)
+        }
+        .defaultScrollAnchor(.center)
+    }
+
     @ViewBuilder
     private func content(for record: FrameRecord) -> some View {
         if case .failed(let message) = record.status {
@@ -38,16 +45,29 @@ struct ImageCanvasView: View {
                 Button("Riprova") { model.retry(record.id) }
             }
         } else if let preview = model.previews[record.id] {
-            if model.actualSize {
-                ScrollView([.horizontal, .vertical]) {
-                    Image(decorative: preview.image, scale: NSScreen.main?.backingScaleFactor ?? 2)
-                        .interpolation(.none)
-                }
-            } else {
+            let backing = NSScreen.main?.backingScaleFactor ?? 2
+            switch model.zoom {
+            case .fit:
                 Image(decorative: preview.image, scale: 1)
                     .resizable()
                     .interpolation(.medium)
                     .aspectRatio(contentMode: .fit)
+            case .half:
+                zoomed(preview.image, scale: backing)
+            case .full:
+                if let full = model.fullResolution, full.url == record.id {
+                    zoomed(full.preview.image, scale: backing)
+                } else {
+                    // In attesa della piena risoluzione: anteprima ingrandita 2× alla stessa scala.
+                    zoomed(preview.image, scale: backing / 2)
+                        .overlay(alignment: .topLeading) {
+                            Label("Caricamento 100%…", systemImage: "hourglass")
+                                .font(.caption)
+                                .padding(6)
+                                .background(.regularMaterial, in: .rect(cornerRadius: 6))
+                                .padding()
+                        }
+                }
             }
         } else {
             ProgressView().controlSize(.large).tint(.white)

@@ -28,6 +28,12 @@ struct Preview: @unchecked Sendable {
     let histogram: DisplayHistogram
 }
 
+enum ZoomMode: String, CaseIterable {
+    case fit = "Adatta"
+    case half = "50%"
+    case full = "100%"
+}
+
 enum ViewMode: String, CaseIterable {
     case review = "Revisione"
     case session = "Sessione"
@@ -64,7 +70,16 @@ final class SessionModel {
     var linkedChannels = true {
         didSet { invalidatePreviews() }
     }
-    var actualSize = false
+    /// Adatta: immagine intera; 50%: un pixel dell'anteprima (superpixel) per pixel dello schermo;
+    /// 100%: pixel reali del sensore, ricostruiti a piena risoluzione solo per il file corrente.
+    var zoom: ZoomMode = .fit {
+        didSet {
+            if zoom == .full { loadFullResolution() } else { fullResolution = nil }
+        }
+    }
+    var fullResolution: (url: URL, preview: Preview)?
+    var fullResolutionLoading: URL?
+    var confirmTrashCurrent = false
     var summary: SessionSummary?
     var thresholds = Thresholds()
     var previews: [URL: Preview] = [:]
@@ -167,10 +182,19 @@ final class SessionModel {
     }
 
     func move(_ delta: Int) {
-        let list = visibleRecords
-        guard !list.isEmpty else { return }
-        let i = list.firstIndex { $0.id == selection } ?? 0
-        selection = list[min(max(i + delta, 0), list.count - 1)].id
+        if let target = SelectionPolicy.moved(selection, in: visibleRecords.map(\.id), by: delta) {
+            selection = target
+        }
+    }
+
+    func moveToFirst() { move(Int.min) }
+
+    func moveToLast() { move(Int.max) }
+
+    var positionText: String {
+        let visible = visibleRecords.map(\.id)
+        guard let p = SelectionPolicy.position(of: selection, in: visible) else { return "– / \(visible.count)" }
+        return "\(p.index) / \(p.count)"
     }
 
     func toggleReject() {
@@ -217,6 +241,19 @@ final class SessionModel {
     var trashFallbackBytes: Int64 {
         let pending = Set(trashFallback)
         return records.filter { pending.contains($0.id) }.reduce(0) { $0 + $1.file.size }
+    }
+
+    func requestTrashCurrent() {
+        if selection != nil { confirmTrashCurrent = true }
+    }
+
+    /// Sposta nel Cestino solo il file corrente (dopo conferma) e passa al successivo.
+    func performTrashCurrent() {
+        guard let url = selection else { return }
+        let report = TrashService().moveToTrash([url])
+        removeRecords(report.trashed)
+        trashFallback = report.trashUnavailable + report.failed.keys.sorted { $0.path < $1.path }
+        trashFallbackReason = report.failed.values.first
     }
 
     func requestTrash() {
@@ -274,7 +311,8 @@ final class SessionModel {
     }
 
     private func selectionChanged() {
-        actualSize = false
+        if fullResolution?.url != selection { fullResolution = nil }
+        loadFullResolution()
         let window = Set(previewWindow())
         previews = previews.filter { window.contains($0.key) }
         if currentSource?.url != selection { currentSource = nil }
@@ -399,6 +437,30 @@ final class SessionModel {
         }
     }
 
+    /// Carica (fuori dal main thread) il file corrente a piena risoluzione quando lo zoom è al 100%.
+    private func loadFullResolution() {
+        guard zoom == .full, let url = selection, fullResolution?.url != url, fullResolutionLoading != url,
+              let record = selectedRecord else { return }
+        if case .failed = record.status { return }
+        fullResolutionLoading = url
+        let gen = generation, version = renderVersion
+        let stretch = stretchEnabled, linked = linkedChannels
+        Task {
+            let preview = await Task.detached(priority: .userInitiated) { () -> Preview? in
+                guard let source = try? FrameAnalyzer.fullResolution(url: url) else { return nil }
+                return SessionModel.makePreview(source, stretch: stretch, linked: linked)
+            }.value
+            guard gen == generation else { return }
+            if fullResolutionLoading == url { fullResolutionLoading = nil }
+            guard url == selection, zoom == .full else { return }
+            if version == renderVersion, let preview {
+                fullResolution = (url, preview)
+            } else if version != renderVersion {
+                loadFullResolution()
+            }
+        }
+    }
+
     nonisolated static func makePreview(_ source: PreviewSource, stretch: Bool, linked: Bool) -> Preview? {
         let stretched = AutoStretch.stretch(source.image, normalization: source.normalization, linked: linked, enabled: stretch)
         guard let image = AutoStretch.cgImage(stretched) else { return nil }
@@ -408,6 +470,8 @@ final class SessionModel {
     private func invalidatePreviews() {
         renderVersion += 1
         previews = [:]
+        fullResolution = nil
+        loadFullResolution()
         if let current = currentSource, current.url == selection, !previewsInFlight.contains(current.url) {
             previewsInFlight.insert(current.url)
             render(current.url, current.source)

@@ -111,6 +111,8 @@ Tecnologie: Swift 6, SwiftUI, Accelerate (vDSP), Swift Charts, Swift Testing. Ne
 - Lista a sinistra: tabella ordinabile (#, ora, esposizione, fondo, FWHM″, stelle, eccentricità, stato).
 - Valori anomali evidenziati rispetto alla mediana di sessione: fondo > +30%, stelle < −50%, FWHM > mediana + 2σ, eccentricità > 0,6. Solo segnalazione, nessuno scarto automatico.
 - Pannello destro: dati del file, statistiche per canale, istogramma, header completo espandibile.
+- Barra sotto l'immagine: primo / precedente / posizione "12 / 124" / successivo / ultimo; zoom Adatta, 50% (un pixel dell'anteprima a metà risoluzione per pixel dello schermo) e 100% (pixel reali del sensore, colore ricostruito a piena risoluzione solo per il file corrente, ~0,75 s; nel frattempo anteprima ingrandita 2×); Scarta/Ripristina; cestino del solo file corrente, **con conferma**, poi passa al successivo.
+- Metriche stellari solo per light e file senza tipo; per dark, flat, bias e dark flat sono assenti ("–").
 
 ### 5.2 Vista Sessione
 
@@ -122,10 +124,13 @@ Grafici (Swift Charts) di FWHM″, numero stelle, fondo ed eccentricità in funz
 |---|---|
 | ←/→, ↑/↓ | file precedente / successivo |
 | X | scarta / ripristina il file corrente |
-| Spazio | alterna adatta-alla-finestra / zoom 1:1 dell'anteprima (trascinabile) |
+| Spazio | alterna Adatta / 100% |
+| ⌘0 | zoom Adatta |
+| Inizio / Fine | primo / ultimo file |
 | S | stretch attivo / disattivo |
 | L | canali collegati / separati |
-| ⌘⌫ | sposta tutti gli scartati nel Cestino (con conferma) |
+| ⌘⌫ | sposta il file corrente nel Cestino (con conferma) |
+| ⇧⌘⌫ | sposta tutti gli scartati nel Cestino (con conferma) |
 | ⌘O | apri cartella |
 | ⌘1 / ⌘2 | Revisione / Sessione |
 

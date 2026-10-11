@@ -49,6 +49,43 @@ public enum FrameDecoder {
         return PlanarImage(width: w, height: h, binFactor: 2, planes: [r, g, b])
     }
 
+    /// Ricostruzione bilineare a piena risoluzione (zoom 100%): ogni colore mancante è la media dei
+    /// campioni dello stesso colore nell'intorno 3×3. Mono invariato.
+    public static func demosaic(_ image: FITSImage, pattern: BayerPattern?) -> PlanarImage {
+        let w = image.width, h = image.height
+        guard let pattern else {
+            return PlanarImage(width: w, height: h, binFactor: 1, planes: [image.pixels])
+        }
+        let colors = (0..<4).map { pattern.color(x: $0 & 1, y: $0 >> 1) }
+        var r = [Float](repeating: 0, count: w * h)
+        var g = r
+        var b = r
+        image.pixels.withUnsafeBufferPointer { src in
+            for y in 0..<h {
+                for x in 0..<w {
+                    var sums: (Float, Float, Float) = (0, 0, 0)
+                    var counts: (Float, Float, Float) = (0, 0, 0)
+                    for yy in max(y - 1, 0)...min(y + 1, h - 1) {
+                        for xx in max(x - 1, 0)...min(x + 1, w - 1) {
+                            let v = src[yy * w + xx]
+                            switch colors[(yy & 1) * 2 + (xx & 1)] {
+                            case 0: sums.0 += v; counts.0 += 1
+                            case 1: sums.1 += v; counts.1 += 1
+                            default: sums.2 += v; counts.2 += 1
+                            }
+                        }
+                    }
+                    let i = y * w + x
+                    let own = colors[(y & 1) * 2 + (x & 1)]
+                    r[i] = own == 0 ? src[i] : (counts.0 > 0 ? sums.0 / counts.0 : 0)
+                    g[i] = own == 1 ? src[i] : (counts.1 > 0 ? sums.1 / counts.1 : 0)
+                    b[i] = own == 2 ? src[i] : (counts.2 > 0 ? sums.2 / counts.2 : 0)
+                }
+            }
+        }
+        return PlanarImage(width: w, height: h, binFactor: 1, planes: [r, g, b])
+    }
+
     /// Campioni CFA grezzi per colore, per le statistiche: [R, G, B] (G contiene entrambi i verdi) o [L].
     public static func cfaChannels(_ image: FITSImage, pattern: BayerPattern?) -> [[Float]] {
         guard let pattern else { return [image.pixels] }

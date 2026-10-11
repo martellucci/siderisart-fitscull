@@ -52,6 +52,33 @@ import Testing
         #expect(FrameDecoder.cfaChannels(Self.image([1, 2], width: 2, height: 1), pattern: nil) == [[1, 2]])
     }
 
+    /// Ricostruzione bilineare a piena risoluzione (zoom 100%): colore uniforme resta uniforme.
+    @Test(arguments: BayerPattern.allCases)
+    func demosaicKeepsUniformColour(pattern: BayerPattern) {
+        let w = 6, h = 4
+        let pixels = (0..<(w * h)).map { i -> Float in
+            [Float(10), 20, 30][pattern.color(x: i % w, y: i / w)]
+        }
+        let planar = FrameDecoder.demosaic(Self.image(pixels, width: w, height: h), pattern: pattern)
+        #expect(planar.width == w && planar.height == h)
+        #expect(planar.binFactor == 1)
+        #expect(planar.planes[0].allSatisfy { $0 == 10 })
+        #expect(planar.planes[1].allSatisfy { $0 == 20 })
+        #expect(planar.planes[2].allSatisfy { $0 == 30 })
+    }
+
+    @Test func demosaicInterpolatesMissingSamples() {
+        // RGGB 4×2, R in (0,0)=1 e (2,0)=3: in (1,0) (G) il rosso è la media dei due vicini.
+        let planar = FrameDecoder.demosaic(Self.image([1, 0, 3, 0, 0, 0, 0, 0], width: 4, height: 2), pattern: .rggb)
+        #expect(planar.planes[0][1] == 2)
+        #expect(planar.planes[0][0] == 1)
+    }
+
+    @Test func demosaicMonoIsPassedThrough() {
+        let planar = FrameDecoder.demosaic(Self.image([1, 2, 3, 4], width: 2, height: 2), pattern: nil)
+        #expect(planar.planes == [[1, 2, 3, 4]])
+    }
+
     @Test func luminanceAveragesChannels() {
         let planar = PlanarImage(width: 1, height: 1, binFactor: 2, planes: [[3], [6], [9]])
         #expect(planar.luminance() == [6])

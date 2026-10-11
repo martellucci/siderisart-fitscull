@@ -58,6 +58,13 @@ struct ContentView: View {
         } message: {
             Text("\(model.rejectedCount) file · \(Format.bytes(model.rejectedBytes)). Potrai recuperarli dal Cestino del Finder.")
         }
+        .confirmationDialog("Spostare \"\(model.selectedRecord?.id.lastPathComponent ?? "")\" nel Cestino?",
+                            isPresented: $model.confirmTrashCurrent, titleVisibility: .visible) {
+            Button("Sposta nel Cestino", role: .destructive) { model.performTrashCurrent() }
+            Button("Annulla", role: .cancel) {}
+        } message: {
+            Text("\(Format.bytes(model.selectedRecord?.file.size ?? 0)). Potrai recuperarlo dal Cestino del Finder.")
+        }
         .sheet(isPresented: Binding(get: { !model.trashFallback.isEmpty },
                                     set: { if !$0 { model.trashFallback = [] } })) {
             TrashFallbackView().environment(model)
@@ -70,7 +77,11 @@ struct MainPane: View {
 
     var body: some View {
         switch model.viewMode {
-        case .review: ImageCanvasView()
+        case .review:
+            VStack(spacing: 0) {
+                ImageCanvasView()
+                ImageControlBar()
+            }
         case .session: SessionChartsView()
         }
     }
@@ -81,7 +92,7 @@ struct HintBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text("←/→ naviga · X scarta · Spazio 1:1 · S stretch \(model.stretchEnabled ? "on" : "off") · L canali \(model.linkedChannels ? "collegati" : "separati")")
+            Text("←/→ naviga · X scarta · Spazio adatta/100% · ⌘⌫ cestino · S stretch \(model.stretchEnabled ? "on" : "off") · L canali \(model.linkedChannels ? "collegati" : "separati")")
             Spacer()
             Button("Sposta scartati nel Cestino (\(model.rejectedCount))") { model.requestTrash() }
                 .disabled(model.rejectedCount == 0)

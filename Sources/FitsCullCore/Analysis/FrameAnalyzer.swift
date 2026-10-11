@@ -60,6 +60,13 @@ public enum FrameAnalyzer {
         return PreviewSource(image: FrameDecoder.decode(fits, pattern: pattern), normalization: normalization(fits))
     }
 
+    /// Colore ricostruito a piena risoluzione del sensore, per lo zoom 100% del solo file corrente.
+    public static func fullResolution(url: URL) throws -> PreviewSource {
+        let fits = try FITSReader.read(url: url)
+        let pattern = FrameMeta(header: fits.header).bayerPattern.flatMap(BayerPattern.init(rawValue:))
+        return PreviewSource(image: FrameDecoder.demosaic(fits, pattern: pattern), normalization: normalization(fits))
+    }
+
     static func normalization(_ fits: FITSImage) -> Float {
         if let m = fits.maxRepresentable, m > 0 { return m }
         return RobustStats.finiteRange(fits.pixels)?.hi ?? 1

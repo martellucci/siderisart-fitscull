@@ -66,6 +66,14 @@ import Testing
         #expect(source.image.width == 128)
     }
 
+    @Test func fullResolutionForZoom100() throws {
+        let url = try FITSFixture.write(Self.file(bayer: true))
+        let source = try FrameAnalyzer.fullResolution(url: url)
+        #expect(source.image.width == 256 && source.image.height == 256)
+        #expect(source.image.isColor)
+        #expect(source.normalization == 65535)
+    }
+
     @Test func skipsPreviewWhenNotRequested() throws {
         let url = try FITSFixture.write(Self.file(bayer: true))
         #expect(try FrameAnalyzer.analyze(url: url, includePreview: false).preview == nil)
