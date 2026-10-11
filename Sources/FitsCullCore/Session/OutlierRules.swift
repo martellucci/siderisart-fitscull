@@ -19,6 +19,8 @@ public struct OutlierFlags: OptionSet, Sendable, Hashable {
 /// Segnalazioni rispetto alla mediana della sessione (spec §5.1). Non scartano nulla da sole.
 public enum OutlierRules {
     public static let backgroundRatio = 1.30
+    /// Il fondo è segnalato solo se supera anche questo valore assoluto (ADU): evita avvisi sui fondi bassi.
+    public static let minBackgroundAlert = 3000.0
     public static let starsRatio = 0.50
     public static let fwhmSigmas = 2.0
     /// Fissa, non relativa alla sessione: un file mosso lo è comunque. FitsCull legge l'eccentricità
@@ -38,7 +40,8 @@ public enum OutlierRules {
 
     public static func flags(for a: FrameAnalysis, in s: SessionSummary) -> OutlierFlags {
         var flags: OutlierFlags = []
-        if s.medianBackground > 0, a.background > s.medianBackground * backgroundRatio { flags.insert(.background) }
+        if s.medianBackground > 0, a.background > s.medianBackground * backgroundRatio,
+           a.background > minBackgroundAlert { flags.insert(.background) }
         guard let stars = a.stars else { return flags }
         if s.medianStars > 0, Double(stars.count) < s.medianStars * starsRatio { flags.insert(.stars) }
         if let m = s.medianFWHM, let sd = s.sigmaFWHM, let v = stars.fwhm,

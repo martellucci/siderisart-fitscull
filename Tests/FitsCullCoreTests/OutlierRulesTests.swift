@@ -6,7 +6,7 @@ import Testing
     static var normal: [FrameAnalysis] {
         (0..<10).map { AnalysisFactory.make(background: 1850 + Double($0), stars: 400 - $0, fwhm: 3.0 + 0.02 * Double($0)) }
     }
-    static let cloud = AnalysisFactory.make(background: 2600, stars: 120, fwhm: 6.0)
+    static let cloud = AnalysisFactory.make(background: 3200, stars: 120, fwhm: 6.0)
 
     @Test func summaryUsesMedians() throws {
         let s = try #require(OutlierRules.summary(Self.normal + [Self.cloud]))
@@ -19,6 +19,20 @@ import Testing
         let s = try #require(OutlierRules.summary(Self.normal + [Self.cloud]))
         #expect(OutlierRules.flags(for: Self.cloud, in: s) == [.background, .stars, .fwhm])
         #expect(OutlierRules.flags(for: Self.normal[3], in: s).isEmpty)
+    }
+
+    /// "Fondo alto" solo se oltre 3000 ADU **e** oltre +30% della mediana di sessione.
+    @Test func backgroundNeedsBothAbsoluteAndRelativeExcess() throws {
+        let s = try #require(OutlierRules.summary(Self.normal))  // mediana fondo ~1855
+        let relativeOnly = AnalysisFactory.make(background: 2600, stars: 395, fwhm: 3.1)
+        #expect(!OutlierRules.flags(for: relativeOnly, in: s).contains(.background))
+        let both = AnalysisFactory.make(background: 3200, stars: 395, fwhm: 3.1)
+        #expect(OutlierRules.flags(for: both, in: s).contains(.background))
+        let brightSession = (0..<10).map { AnalysisFactory.make(background: 2900 + Double($0), stars: 400, fwhm: 3) }
+        let sb = try #require(OutlierRules.summary(brightSession))
+        let absoluteOnly = AnalysisFactory.make(background: 3100, stars: 400, fwhm: 3)
+        #expect(!OutlierRules.flags(for: absoluteOnly, in: sb).contains(.background))
+        #expect(OutlierRules.minBackgroundAlert == 3000)
     }
 
     @Test func zeroStarFrameIsFlaggedNotCrashing() throws {

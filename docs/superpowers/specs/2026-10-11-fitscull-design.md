@@ -109,7 +109,7 @@ Tecnologie: Swift 6, SwiftUI, Accelerate (vDSP), Swift Charts, Swift Testing. Ne
 ```
 
 - Lista a sinistra: tabella ordinabile (#, ora, esposizione, fondo, FWHM″, stelle, eccentricità, stato).
-- Valori anomali evidenziati rispetto alla mediana di sessione: fondo > +30%, stelle < −50%, FWHM > mediana + 2σ, eccentricità > 0,75 (soglia fissa; ~0,67–0,70 in PixInsight). Solo segnalazione, nessuno scarto automatico.
+- Valori anomali evidenziati rispetto alla mediana di sessione: fondo > +30% **e** > 3000 ADU, stelle < −50%, FWHM > mediana + 2σ, eccentricità > 0,75 (soglia fissa; ~0,67–0,70 in PixInsight). Solo segnalazione, nessuno scarto automatico.
 - Pannello destro: dati del file, statistiche per canale, istogramma, header completo espandibile.
 - Barra sotto l'immagine: primo / precedente / posizione "12 / 124" / successivo / ultimo; zoom Adatta, 50% (un pixel dell'anteprima a metà risoluzione per pixel dello schermo) e 100% (pixel reali del sensore, colore ricostruito a piena risoluzione solo per il file corrente, ~0,75 s; nel frattempo anteprima ingrandita 2×); Scarta/Ripristina; cestino del solo file corrente, **con conferma**, poi passa al successivo.
 - Metriche stellari solo per light e file senza tipo; per dark, flat, bias e dark flat sono assenti ("–").
