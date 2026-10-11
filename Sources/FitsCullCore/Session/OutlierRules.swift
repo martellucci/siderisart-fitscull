@@ -21,7 +21,9 @@ public enum OutlierRules {
     public static let backgroundRatio = 1.30
     public static let starsRatio = 0.50
     public static let fwhmSigmas = 2.0
-    public static let maxEccentricity = 0.6
+    /// Fissa, non relativa alla sessione: un file mosso lo è comunque. FitsCull legge l'eccentricità
+    /// ~6–12% più alta di PixInsight, quindi 0,75 corrisponde a ~0,67–0,70 in PixInsight.
+    public static let maxEccentricity = 0.75
 
     public static func summary(_ analyses: [FrameAnalysis]) -> SessionSummary? {
         guard !analyses.isEmpty else { return nil }

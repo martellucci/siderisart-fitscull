@@ -27,10 +27,14 @@ import Testing
         #expect(OutlierRules.flags(for: empty, in: s) == [.stars])
     }
 
+    /// Soglia fissa 0,75 (FitsCull legge l'eccentricità ~6–12% più alta di PixInsight).
     @Test func eccentricityFlag() throws {
-        let trailed = AnalysisFactory.make(background: 1850, stars: 395, fwhm: 3.1, eccentricity: 0.7)
         let s = try #require(OutlierRules.summary(Self.normal))
+        let trailed = AnalysisFactory.make(background: 1850, stars: 395, fwhm: 3.1, eccentricity: 0.8)
         #expect(OutlierRules.flags(for: trailed, in: s) == [.eccentricity])
+        let slightlyElongated = AnalysisFactory.make(background: 1850, stars: 395, fwhm: 3.1, eccentricity: 0.7)
+        #expect(OutlierRules.flags(for: slightlyElongated, in: s).isEmpty)
+        #expect(OutlierRules.maxEccentricity == 0.75)
     }
 
     @Test func calibrationFramesAreNeverFlaggedForStars() throws {
