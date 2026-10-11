@@ -21,6 +21,10 @@ public struct FITSImage: Sendable {
 }
 
 public enum FITSReader {
+    /// Mappa in memoria solo i volumi locali: su un volume di rete una disconnessione durante la lettura
+    /// di un file mappato terminerebbe l'app (SIGBUS).
+    public static let readingOptions: Data.ReadingOptions = .mappedIfSafe
+
     /// Legge solo i blocchi dell'header (veloce anche su NAS).
     public static func readHeader(url: URL) throws -> FITSHeader {
         let handle = try FileHandle(forReadingFrom: url)
@@ -39,7 +43,7 @@ public enum FITSReader {
     }
 
     public static func read(url: URL) throws -> FITSImage {
-        try decode(Data(contentsOf: url, options: .alwaysMapped))
+        try decode(Data(contentsOf: url, options: readingOptions))
     }
 
     public static func decode(_ data: Data) throws -> FITSImage {

@@ -49,7 +49,12 @@ final class SessionModel {
         didSet { if selection != oldValue { selectionChanged() } }
     }
     var typeFilter: ImageType? = .light {
-        didSet { refreshSummary(); pump() }
+        didSet {
+            refreshSummary()
+            let visible = SelectionPolicy.reconcile(selection, visible: visibleRecords.map(\.id))
+            if visible != selection { selection = visible }
+            pump()
+        }
     }
     var sortKey: SortKey = .date
     var viewMode: ViewMode = .review
@@ -386,7 +391,10 @@ final class SessionModel {
             }.value
             guard gen == generation else { return }
             previewsInFlight.remove(url)
-            if version == renderVersion, let preview, previewWindow().contains(url) { previews[url] = preview }
+            if version == renderVersion, let preview,
+               SelectionPolicy.keepsPreview(for: url, selection: selection, window: previewWindow()) {
+                previews[url] = preview
+            }
             pump()
         }
     }

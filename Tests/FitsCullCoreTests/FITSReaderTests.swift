@@ -72,6 +72,12 @@ import Testing
         #expect(header.string("OBJECT") == "M 42")
     }
 
+    /// `.alwaysMapped` mapperebbe anche i volumi di rete: una disconnessione del NAS durante la lettura
+    /// farebbe terminare l'app con SIGBUS. Si mappano solo i volumi locali.
+    @Test func neverMapsNetworkVolumes() {
+        #expect(FITSReader.readingOptions == .mappedIfSafe)
+    }
+
     @Test func readHeaderOfNonFITSThrows() throws {
         let url = try FITSFixture.write(Data(repeating: 0x41, count: 4000), name: "bad.fits")
         #expect(throws: FITSError.notFITS) { try FITSReader.readHeader(url: url) }

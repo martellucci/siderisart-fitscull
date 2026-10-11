@@ -69,7 +69,7 @@ Tecnologie: Swift 6, SwiftUI, Accelerate (vDSP), Swift Charts, Swift Testing. Ne
 
 | Componente | Responsabilità | Ingresso → Uscita |
 |---|---|---|
-| `FITSReader` | Legge l'header a blocchi da 2880 byte, mappa i dati in memoria (`Data(contentsOf:options:.alwaysMapped)`), converte big-endian + BZERO/BSCALE in `Float` | URL → `FITSImage` (header grezzo, larghezza, altezza, pixel `[Float]` in ADU) |
+| `FITSReader` | Legge l'header a blocchi da 2880 byte, legge i dati con `Data(contentsOf:options:.mappedIfSafe)` (mappati solo su volumi locali: su un NAS una disconnessione con file mappato farebbe terminare l'app), converte big-endian + BZERO/BSCALE in `Float` | URL → `FITSImage` (header grezzo, larghezza, altezza, pixel `[Float]` in ADU) |
 | `FrameMeta` | Normalizza le chiavi dei vari software: `EXPTIME`/`EXPOSURE`, `CCD-TEMP`, `SET-TEMP`, `GAIN`, `OFFSET`, `DATE-OBS`, `OBJECT`, `IMAGETYP`, `BAYERPAT`, `XPIXSZ`, `FOCALLEN`, `XBINNING`, `FILTER`, `AIRMASS`; calcola la scala `206,265 × XPIXSZ / FOCALLEN` ″/px (XPIXSZ include già il binning) | header → `FrameMeta` (campi opzionali) |
 | `FrameDecoder` | Superpixel 2×2: per ogni cella Bayer R, media dei due G, B → immagine RGB a metà risoluzione; per mono restituisce un solo canale | `FITSImage` + pattern → `PlanarImage` (1 o 3 piani `Float`) |
 | `Statistics` | Per canale (dai sotto-piani CFA, G = unione dei due G): min, max, media, mediana, σ, rumore = 1,4826·MAD, % saturi (≥ 99,5% del massimo rappresentabile dal BITPIX dopo BZERO). Fondo cielo = mediana | piano → `ChannelStats` |
