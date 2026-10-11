@@ -2,8 +2,6 @@ public struct SessionSummary: Sendable, Equatable {
     public var medianBackground: Double
     public var medianStars: Double
     public var medianFWHM: Double?
-    /// 1,4826 × MAD delle FWHM (pixel).
-    public var sigmaFWHM: Double?
 }
 
 public struct OutlierFlags: OptionSet, Sendable, Hashable {
@@ -22,7 +20,8 @@ public enum OutlierRules {
     /// Il fondo è segnalato solo se supera anche questo valore assoluto (ADU): evita avvisi sui fondi bassi.
     public static let minBackgroundAlert = 3000.0
     public static let starsRatio = 0.50
-    public static let fwhmSigmas = 2.0
+    /// FWHM segnalata oltre la mediana di sessione + 25%: sotto, le differenze sono seeing normale.
+    public static let fwhmRatio = 1.25
     /// Fissa, non relativa alla sessione: un file mosso lo è comunque. FitsCull legge l'eccentricità
     /// ~6–12% più alta di PixInsight, quindi 0,75 corrisponde a ~0,67–0,70 in PixInsight.
     public static let maxEccentricity = 0.75
@@ -32,10 +31,9 @@ public enum OutlierRules {
         let measured = analyses.compactMap(\.stars)
         let fwhms = measured.compactMap(\.fwhm)
         let medianFWHM = fwhms.isEmpty ? nil : RobustStats.exactMedian(fwhms)
-        let sigmaFWHM = medianFWHM.map { m in 1.4826 * RobustStats.exactMedian(fwhms.map { abs($0 - m) }) }
         return SessionSummary(medianBackground: RobustStats.exactMedian(analyses.map(\.background)),
                               medianStars: measured.isEmpty ? 0 : RobustStats.exactMedian(measured.map { Double($0.count) }),
-                              medianFWHM: medianFWHM, sigmaFWHM: sigmaFWHM)
+                              medianFWHM: medianFWHM)
     }
 
     public static func flags(for a: FrameAnalysis, in s: SessionSummary) -> OutlierFlags {
@@ -44,8 +42,7 @@ public enum OutlierRules {
            a.background > minBackgroundAlert { flags.insert(.background) }
         guard let stars = a.stars else { return flags }
         if s.medianStars > 0, Double(stars.count) < s.medianStars * starsRatio { flags.insert(.stars) }
-        if let m = s.medianFWHM, let sd = s.sigmaFWHM, let v = stars.fwhm,
-           v > m + fwhmSigmas * max(sd, 0.05 * m) { flags.insert(.fwhm) }
+        if let m = s.medianFWHM, let v = stars.fwhm, v > m * fwhmRatio { flags.insert(.fwhm) }
         if let e = stars.eccentricity, e > maxEccentricity { flags.insert(.eccentricity) }
         return flags
     }

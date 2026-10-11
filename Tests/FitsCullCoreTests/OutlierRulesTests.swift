@@ -21,6 +21,17 @@ import Testing
         #expect(OutlierRules.flags(for: Self.normal[3], in: s).isEmpty)
     }
 
+    /// "FWHM alta" solo oltre la mediana di sessione + 25% (scelta dell'utente dopo il confronto con PixInsight).
+    @Test func fwhmFlagAbove25Percent() throws {
+        let s = try #require(OutlierRules.summary(Self.normal))
+        let m = try #require(s.medianFWHM)
+        let worse20 = AnalysisFactory.make(background: 1850, stars: 395, fwhm: m * 1.20)
+        #expect(!OutlierRules.flags(for: worse20, in: s).contains(.fwhm))
+        let worse30 = AnalysisFactory.make(background: 1850, stars: 395, fwhm: m * 1.30)
+        #expect(OutlierRules.flags(for: worse30, in: s).contains(.fwhm))
+        #expect(OutlierRules.fwhmRatio == 1.25)
+    }
+
     /// "Fondo alto" solo se oltre 3000 ADU **e** oltre +30% della mediana di sessione.
     @Test func backgroundNeedsBothAbsoluteAndRelativeExcess() throws {
         let s = try #require(OutlierRules.summary(Self.normal))  // mediana fondo ~1855
