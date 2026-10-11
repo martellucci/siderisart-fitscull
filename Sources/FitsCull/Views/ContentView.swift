@@ -51,6 +51,17 @@ struct ContentView: View {
         } message: {
             Text(model.errorMessage ?? "")
         }
+        .confirmationDialog("Spostare \(model.rejectedCount) file nel Cestino?", isPresented: $model.confirmTrash,
+                            titleVisibility: .visible) {
+            Button("Sposta nel Cestino", role: .destructive) { model.performTrash() }
+            Button("Annulla", role: .cancel) {}
+        } message: {
+            Text("\(model.rejectedCount) file · \(Format.bytes(model.rejectedBytes)). Potrai recuperarli dal Cestino del Finder.")
+        }
+        .sheet(isPresented: Binding(get: { !model.trashFallback.isEmpty },
+                                    set: { if !$0 { model.trashFallback = [] } })) {
+            TrashFallbackView().environment(model)
+        }
     }
 }
 
@@ -72,6 +83,8 @@ struct HintBar: View {
         HStack(spacing: 12) {
             Text("←/→ naviga · X scarta · Spazio 1:1 · S stretch \(model.stretchEnabled ? "on" : "off") · L canali \(model.linkedChannels ? "collegati" : "separati")")
             Spacer()
+            Button("Sposta scartati nel Cestino (\(model.rejectedCount))") { model.requestTrash() }
+                .disabled(model.rejectedCount == 0)
         }
         .font(.caption)
         .padding(.horizontal, 10)

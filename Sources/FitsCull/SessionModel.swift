@@ -65,6 +65,9 @@ final class SessionModel {
     var previews: [URL: Preview] = [:]
     var loadingMessage: String?
     var errorMessage: String?
+    var confirmTrash = false
+    var trashFallback: [URL] = []
+    var trashFallbackReason: String?
 
     let concurrency = 3
     let previewRadius = 5
@@ -200,6 +203,62 @@ final class SessionModel {
             }
             pump()
         }
+    }
+
+    // MARK: - Cestino
+
+    var rejectedBytes: Int64 { records.filter(\.rejected).reduce(0) { $0 + $1.file.size } }
+
+    var trashFallbackBytes: Int64 {
+        let pending = Set(trashFallback)
+        return records.filter { pending.contains($0.id) }.reduce(0) { $0 + $1.file.size }
+    }
+
+    func requestTrash() {
+        if rejectedCount > 0 { confirmTrash = true }
+    }
+
+    func performTrash() {
+        let report = TrashService().moveToTrash(records.filter(\.rejected).map(\.id))
+        removeRecords(report.trashed)
+        trashFallback = report.trashUnavailable + report.failed.keys.sorted { $0.path < $1.path }
+        trashFallbackReason = report.failed.values.first
+    }
+
+    func moveFallbackToRejectFolder() {
+        let report = TrashService().moveToRejectFolder(trashFallback)
+        removeRecords(report.done)
+        trashFallback = []
+        if let reason = report.failed.values.first {
+            errorMessage = "Non è stato possibile spostare \(report.failed.count) file: \(reason)"
+        }
+    }
+
+    func deleteFallbackPermanently() {
+        let report = TrashService().deletePermanently(trashFallback)
+        removeRecords(report.done)
+        trashFallback = []
+        if let reason = report.failed.values.first {
+            errorMessage = "Non è stato possibile eliminare \(report.failed.count) file: \(reason)"
+        }
+    }
+
+    private func removeRecords(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        let gone = Set(urls)
+        let list = visibleRecords
+        var next = selection
+        if let selected = selection, gone.contains(selected), let i = list.firstIndex(where: { $0.id == selected }) {
+            next = list[i...].first { !gone.contains($0.id) }?.id ?? list[..<i].last { !gone.contains($0.id) }?.id
+        }
+        records.removeAll { gone.contains($0.id) }
+        for url in urls {
+            cache.remove(url)
+            previews[url] = nil
+        }
+        saveCache()
+        selection = next
+        refreshSummary()
     }
 
     // MARK: - Scheduling dell'analisi

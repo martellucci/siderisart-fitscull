@@ -15,6 +15,9 @@ struct ReviewCommands: Commands {
             Button("Stretch automatico") { model.stretchEnabled.toggle() }.keyboardShortcut("s", modifiers: [])
             Button("Canali collegati / separati") { model.linkedChannels.toggle() }.keyboardShortcut("l", modifiers: [])
             Divider()
+            Button("Sposta scartati nel Cestino…") { model.requestTrash() }
+                .keyboardShortcut(.delete, modifiers: .command)
+            Divider()
             Button("Revisione") { model.viewMode = .review }.keyboardShortcut("1")
             Button("Sessione") { model.viewMode = .session }.keyboardShortcut("2")
         }
