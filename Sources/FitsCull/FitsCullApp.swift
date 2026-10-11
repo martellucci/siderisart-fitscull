@@ -24,6 +24,7 @@ struct FitsCullApp: App {
                 Button("Apri cartella…") { model.chooseFolder() }
                     .keyboardShortcut("o")
             }
+            ReviewCommands(model: model)
         }
     }
 }
