@@ -25,7 +25,7 @@ public struct FileOpReport: Sendable, Equatable {
 }
 
 public struct TrashService: Sendable {
-    public static let rejectFolderName = "_scartati"
+    public static let rejectFolderName = "_rejected"
 
     private let trasher: FileTrashing
 
@@ -48,7 +48,7 @@ public struct TrashService: Sendable {
         return report
     }
 
-    /// Sposta in `_scartati/` accanto a ogni file, senza sovrascrivere ("nome 2.fits", …).
+    /// Sposta in `_rejected/` accanto a ogni file, senza sovrascrivere ("nome 2.fits", …).
     public func moveToRejectFolder(_ urls: [URL]) -> FileOpReport {
         let fm = FileManager.default
         var report = FileOpReport()

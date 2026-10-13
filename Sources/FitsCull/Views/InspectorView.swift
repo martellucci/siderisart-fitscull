@@ -16,9 +16,9 @@ struct InspectorView: View {
                         }
                     }
                     if let analysis = record.analysis {
-                        section("STATISTICHE") { StatsGrid(analysis: analysis) }
+                        section("STATISTICS") { StatsGrid(analysis: analysis) }
                         if let stars = analysis.stars {
-                            section("STELLE") { StarsGrid(stars: stars) }
+                            section("STARS") { StarsGrid(stars: stars) }
                         }
                         if !record.flags.isEmpty {
                             Label(Format.flags(record.flags), systemImage: "exclamationmark.triangle")
@@ -26,12 +26,12 @@ struct InspectorView: View {
                         }
                     }
                     if let preview = model.previews[record.id] {
-                        section("ISTOGRAMMA (visualizzato)") {
+                        section("HISTOGRAM (displayed)") {
                             HistogramView(histogram: preview.histogram).frame(height: 80)
                         }
                     }
                     if let header = record.header {
-                        DisclosureGroup("Header FITS (\(header.cards.count))") {
+                        DisclosureGroup("FITS Header (\(header.cards.count))") {
                             LazyVStack(alignment: .leading, spacing: 1) {
                                 ForEach(Array(header.cards.enumerated()), id: \.offset) { _, card in
                                     Text(card.raw.trimmingCharacters(in: .whitespaces))
@@ -46,7 +46,7 @@ struct InspectorView: View {
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Text("Nessun file selezionato").foregroundStyle(.secondary).padding()
+                Text("No file selected").foregroundStyle(.secondary).padding()
             }
         }
     }
@@ -69,13 +69,13 @@ struct StatsGrid: View {
                 Text("")
                 ForEach(analysis.channelNames, id: \.self) { Text($0).bold() }
             }
-            row("Mediana", channels.map { Format.number($0.median, digits: 0) })
-            row("Media", channels.map { Format.number($0.mean, digits: 0) })
+            row("Median", channels.map { Format.number($0.median, digits: 0) })
+            row("Mean", channels.map { Format.number($0.mean, digits: 0) })
             row("σ", channels.map { Format.number($0.stdDev, digits: 1) })
-            row("Rumore", channels.map { Format.number($0.noise, digits: 1) })
+            row("Noise", channels.map { Format.number($0.noise, digits: 1) })
             row("Min", channels.map { Format.number($0.min, digits: 0) })
             row("Max", channels.map { Format.number($0.max, digits: 0) })
-            row("Saturi", channels.map { Format.number($0.saturatedFraction.map { $0 * 100 }, digits: 3, suffix: "%") })
+            row("Saturated", channels.map { Format.number($0.saturatedFraction.map { $0 * 100 }, digits: 3, suffix: "%") })
         }
         .font(.caption.monospacedDigit())
     }
@@ -93,10 +93,10 @@ struct StarsGrid: View {
 
     var body: some View {
         Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 3) {
-            GridRow { Text("Stelle").foregroundStyle(.secondary); Text("\(stars.count)") }
+            GridRow { Text("Stars").foregroundStyle(.secondary); Text("\(stars.count)") }
             GridRow { Text("FWHM").foregroundStyle(.secondary); Text(fwhmText) }
             GridRow { Text("HFR").foregroundStyle(.secondary); Text(Format.number(stars.hfr, digits: 2, suffix: " px")) }
-            GridRow { Text("Eccentricità").foregroundStyle(.secondary); Text(Format.number(stars.eccentricity, digits: 2)) }
+            GridRow { Text("Eccentricity").foregroundStyle(.secondary); Text(Format.number(stars.eccentricity, digits: 2)) }
         }
         .font(.caption.monospacedDigit())
     }

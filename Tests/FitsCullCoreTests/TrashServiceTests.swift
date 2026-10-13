@@ -43,6 +43,7 @@ struct FakeTrash: FileTrashing {
 
     @Test func movesToRejectFolderWithoutOverwriting() throws {
         let (dir, urls) = try Self.files(["a.fits"])
+        #expect(TrashService.rejectFolderName == "_rejected")
         let reject = dir.appendingPathComponent(TrashService.rejectFolderName)
         try FileManager.default.createDirectory(at: reject, withIntermediateDirectories: true)
         try Data("old".utf8).write(to: reject.appendingPathComponent("a.fits"))

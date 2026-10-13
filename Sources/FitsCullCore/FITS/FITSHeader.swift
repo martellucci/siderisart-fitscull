@@ -8,10 +8,10 @@ public enum FITSError: Error, Equatable, Sendable, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .notFITS: "non è un file FITS"
-        case .truncatedHeader: "intestazione FITS incompleta"
-        case .truncatedData: "file troncato (copia interrotta?)"
-        case .unsupported(let reason): "non supportato: \(reason)"
+        case .notFITS: "not a FITS file"
+        case .truncatedHeader: "incomplete FITS header"
+        case .truncatedData: "truncated file (interrupted copy?)"
+        case .unsupported(let reason): "unsupported: \(reason)"
         }
     }
 }

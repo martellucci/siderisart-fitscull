@@ -21,10 +21,15 @@ struct FitsCullApp: App {
         }
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Apri cartella…") { model.chooseFolder() }
+                Button("Open Folder…") { model.chooseFolder() }
                     .keyboardShortcut("o")
             }
             ReviewCommands(model: model)
+        }
+
+        Settings {
+            SettingsView()
+                .environment(model)
         }
     }
 }

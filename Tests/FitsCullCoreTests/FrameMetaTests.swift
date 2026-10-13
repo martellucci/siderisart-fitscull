@@ -62,4 +62,8 @@ import Testing
         ])))
         #expect(meta.bayerPattern == nil)
     }
+
+    @Test func imageTypeLabelsAreEnglish() {
+        #expect(ImageType.allCases.map(\.label) == ["Light", "Dark", "Flat", "Bias", "Dark flat", "Unknown"])
+    }
 }

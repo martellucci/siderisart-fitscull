@@ -23,7 +23,7 @@ public enum ImageType: String, Sendable, Codable, CaseIterable {
         case .flat: "Flat"
         case .bias: "Bias"
         case .darkFlat: "Dark flat"
-        case .unknown: "Sconosciuto"
+        case .unknown: "Unknown"
         }
     }
 }

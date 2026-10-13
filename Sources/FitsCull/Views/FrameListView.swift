@@ -11,11 +11,11 @@ struct FrameListView: View {
                 Text("\(r.index)").monospacedDigit().strikethrough(r.rejected)
             }
             .width(36)
-            TableColumn("Ora") { r in Text(r.meta?.dateObs.map(Format.time) ?? "–").monospacedDigit() }
+            TableColumn("Time") { r in Text(r.meta?.dateObs.map(Format.time) ?? "–").monospacedDigit() }
                 .width(44)
-            TableColumn("Esp") { r in Text(Format.number(r.meta?.exposure, digits: 0, suffix: "s")).monospacedDigit() }
+            TableColumn("Exp") { r in Text(Format.number(r.meta?.exposure, digits: 0, suffix: "s")).monospacedDigit() }
                 .width(44)
-            TableColumn("Fondo") { r in
+            TableColumn("Bkg") { r in
                 FlaggedCell(text: Format.number(r.analysis?.background, digits: 0), flagged: r.flags.contains(.background))
             }
             .width(52)
@@ -32,7 +32,7 @@ struct FrameListView: View {
                 FlaggedCell(text: Format.number(r.analysis?.stars?.eccentricity, digits: 2), flagged: r.flags.contains(.eccentricity))
             }
             .width(40)
-            TableColumn("Stato") { r in StatusBadge(record: r) }
+            TableColumn("Status") { r in StatusBadge(record: r) }
                 .width(64)
         }
     }
@@ -55,7 +55,7 @@ struct StatusBadge: View {
 
     var body: some View {
         if record.rejected {
-            Text("✗ scarta").foregroundStyle(.red)
+            Text("✗ reject").foregroundStyle(.red)
         } else {
             switch record.status {
             case .pending:
@@ -63,7 +63,7 @@ struct StatusBadge: View {
             case .analyzing:
                 ProgressView().controlSize(.mini)
             case .failed(let message):
-                Text("errore").foregroundStyle(.red).help(message)
+                Text("error").foregroundStyle(.red).help(message)
             case .done:
                 if record.flags.isEmpty {
                     Text("✓").foregroundStyle(.green)

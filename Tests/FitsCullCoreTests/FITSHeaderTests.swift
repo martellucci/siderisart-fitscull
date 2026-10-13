@@ -56,8 +56,10 @@ import Testing
         }
     }
 
-    @Test func errorsHaveItalianDescriptions() {
-        #expect(FITSError.truncatedData.description == "file troncato (copia interrotta?)")
-        #expect(FITSError.unsupported("NAXIS = 3").description == "non supportato: NAXIS = 3")
+    @Test func errorsHaveEnglishDescriptions() {
+        #expect(FITSError.notFITS.description == "not a FITS file")
+        #expect(FITSError.truncatedHeader.description == "incomplete FITS header")
+        #expect(FITSError.truncatedData.description == "truncated file (interrupted copy?)")
+        #expect(FITSError.unsupported("NAXIS = 3").description == "unsupported: NAXIS = 3")
     }
 }

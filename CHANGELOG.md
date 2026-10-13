@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 — 2026-10-13
+
+- Finestra **Settings** (FitsCull → Settings…, ⌘,) per le segnalazioni: ogni regola (fondo, stelle, FWHM,
+  eccentricità) si attiva o disattiva e ha i suoi valori; "Restore Defaults" riporta quelli della 1.0.0.
+  Le impostazioni sono salvate nelle preferenze e ricalcolano subito le segnalazioni della sessione aperta.
+- Interfaccia interamente in inglese: menù (Review, Open Folder…), barre, inspector, grafici, avvisi,
+  segnalazioni, messaggi d'errore e output di `fcanalyze`.
+- Cartella di ripiego per i volumi senza Cestino rinominata da `_scartati/` a `_rejected/`.
+
 ## 1.0.0 — 2026-10-11
 
 Prima versione completa (branch `fitscull-v1`). Documento di progetto: `docs/superpowers/specs/2026-10-11-fitscull-design.md`; validazione: `docs/validation-2026-10-11.md`.

@@ -47,7 +47,7 @@ import Testing
             FITSFixture.kv("EXTEND", "T"),
         ])
         let error = #expect(throws: FITSError.self) { try FITSReader.decode(data) }
-        #expect(error == .unsupported("nessuna immagine nell'HDU primaria (file compresso?)"))
+        #expect(error == .unsupported("no image in the primary HDU (compressed file?)"))
     }
 
     @Test func rejectsDoublePrecision() {

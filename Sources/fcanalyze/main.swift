@@ -4,7 +4,7 @@ import Foundation
 // Uso: fcanalyze <file.fits | cartella> …   (compilare con -c release per tempi realistici)
 let arguments = CommandLine.arguments.dropFirst()
 guard !arguments.isEmpty else {
-    print("Uso: fcanalyze <file.fits|cartella> …")
+    print("Usage: fcanalyze <file.fits|folder> …")
     exit(1)
 }
 
@@ -14,7 +14,7 @@ for argument in arguments {
     let url = URL(fileURLWithPath: argument)
     var isDirectory: ObjCBool = false
     guard FileManager.default.fileExists(atPath: argument, isDirectory: &isDirectory) else {
-        print("Non trovato: \(argument)")
+        print("Not found: \(argument)")
         continue
     }
     if isDirectory.boolValue {
@@ -31,7 +31,7 @@ func format(_ value: Double?, _ digits: Int) -> String {
     return String(format: "%.\(digits)f", value)
 }
 
-print(["file", "tipo", "esp", "fondo", "rumore", "sat%", "stelle", "FWHMpx", "FWHM\"", "ecc", "ms"].joined(separator: "\t"))
+print(["file", "type", "exp", "background", "noise", "sat%", "stars", "FWHMpx", "FWHM\"", "ecc", "ms"].joined(separator: "\t"))
 for url in urls {
     let start = Date()
     do {
@@ -43,6 +43,6 @@ for url in urls {
             .joined(separator: "\t"))
     } catch {
         let message = (error as? FITSError)?.description ?? error.localizedDescription
-        print("\(url.lastPathComponent)\tERRORE: \(message)")
+        print("\(url.lastPathComponent)\tERROR: \(message)")
     }
 }

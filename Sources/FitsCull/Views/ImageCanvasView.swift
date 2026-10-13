@@ -14,7 +14,7 @@ struct ImageCanvasView: View {
                     VStack {
                         HStack {
                             Spacer()
-                            Text("SCARTATO")
+                            Text("REJECTED")
                                 .font(.headline)
                                 .padding(6)
                                 .background(Color.red.opacity(0.85), in: .rect(cornerRadius: 6))
@@ -25,7 +25,7 @@ struct ImageCanvasView: View {
                     .padding()
                 }
             } else {
-                Text("Apri una cartella con ⌘O").foregroundStyle(.secondary)
+                Text("Open a folder with ⌘O").foregroundStyle(.secondary)
             }
         }
     }
@@ -42,7 +42,7 @@ struct ImageCanvasView: View {
         if case .failed(let message) = record.status {
             VStack(spacing: 10) {
                 Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.white)
-                Button("Riprova") { model.retry(record.id) }
+                Button("Retry") { model.retry(record.id) }
             }
         } else if let preview = model.previews[record.id] {
             let backing = NSScreen.main?.backingScaleFactor ?? 2
@@ -61,7 +61,7 @@ struct ImageCanvasView: View {
                     // In attesa della piena risoluzione: anteprima ingrandita 2× alla stessa scala.
                     zoomed(preview.image, scale: backing / 2)
                         .overlay(alignment: .topLeading) {
-                            Label("Caricamento 100%…", systemImage: "hourglass")
+                            Label("Loading 100%…", systemImage: "hourglass")
                                 .font(.caption)
                                 .padding(6)
                                 .background(.regularMaterial, in: .rect(cornerRadius: 6))

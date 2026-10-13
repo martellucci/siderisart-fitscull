@@ -22,7 +22,7 @@ import Testing
         #expect(scanned[0].meta?.imageType == .light)
         #expect(scanned[0].file.size == 5760)
         #expect(scanned[2].meta == nil)
-        #expect(scanned[2].headerError == "non è un file FITS")
+        #expect(scanned[2].headerError == "not a FITS file")
     }
 
     @Test func emptyFolder() throws {
@@ -36,6 +36,6 @@ import Testing
     }
 
     @Test func userMessages() {
-        #expect(UserMessage.from(FITSError.truncatedData) == "file troncato (copia interrotta?)")
+        #expect(UserMessage.from(FITSError.truncatedData) == "truncated file (interrupted copy?)")
     }
 }

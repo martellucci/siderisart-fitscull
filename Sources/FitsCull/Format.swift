@@ -34,10 +34,10 @@ enum Format {
 
     static func flags(_ f: OutlierFlags) -> String {
         var parts: [String] = []
-        if f.contains(.background) { parts.append("fondo alto") }
-        if f.contains(.stars) { parts.append("poche stelle") }
-        if f.contains(.fwhm) { parts.append("FWHM alta") }
-        if f.contains(.eccentricity) { parts.append("stelle allungate") }
+        if f.contains(.background) { parts.append("high background") }
+        if f.contains(.stars) { parts.append("few stars") }
+        if f.contains(.fwhm) { parts.append("high FWHM") }
+        if f.contains(.eccentricity) { parts.append("elongated stars") }
         return parts.joined(separator: ", ")
     }
 }

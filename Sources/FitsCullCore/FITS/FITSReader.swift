@@ -50,13 +50,13 @@ public enum FITSReader {
         let header = try FITSHeader.parse(data)
         guard header.bool("SIMPLE") == true else { throw FITSError.notFITS }
         let naxis = header.int("NAXIS") ?? 0
-        guard naxis != 0 else { throw FITSError.unsupported("nessuna immagine nell'HDU primaria (file compresso?)") }
+        guard naxis != 0 else { throw FITSError.unsupported("no image in the primary HDU (compressed file?)") }
         guard naxis == 2 else { throw FITSError.unsupported("NAXIS = \(naxis)") }
         guard let bitpix = header.int("BITPIX"), [8, 16, 32, -32].contains(bitpix) else {
             throw FITSError.unsupported("BITPIX = \(header.int("BITPIX").map(String.init) ?? "?")")
         }
         guard let width = header.int("NAXIS1"), let height = header.int("NAXIS2"), width > 0, height > 0 else {
-            throw FITSError.unsupported("dimensioni non valide")
+            throw FITSError.unsupported("invalid dimensions")
         }
         let bzero = header.double("BZERO") ?? 0
         let bscale = header.double("BSCALE") ?? 1

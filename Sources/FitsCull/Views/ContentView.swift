@@ -19,19 +19,19 @@ struct ContentView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
-                Button { model.chooseFolder() } label: { Label("Apri cartella", systemImage: "folder") }
+                Button { model.chooseFolder() } label: { Label("Open Folder", systemImage: "folder") }
             }
             ToolbarItemGroup {
-                Picker("Tipo", selection: $model.typeFilter) {
-                    Text("Tutti").tag(ImageType?.none)
+                Picker("Type", selection: $model.typeFilter) {
+                    Text("All").tag(ImageType?.none)
                     ForEach(model.availableTypes, id: \.self) { Text($0.label).tag(Optional($0)) }
                 }
                 .pickerStyle(.menu)
-                Picker("Ordina", selection: $model.sortKey) {
+                Picker("Sort", selection: $model.sortKey) {
                     ForEach(SortKey.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.menu)
-                Picker("Vista", selection: $model.viewMode) {
+                Picker("View", selection: $model.viewMode) {
                     ForEach(ViewMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
@@ -39,31 +39,31 @@ struct ContentView: View {
         }
         .navigationTitle(model.folder?.lastPathComponent ?? "FitsCull")
         .navigationSubtitle(model.records.isEmpty ? ""
-            : "\(model.records.count) file · \(model.rejectedCount) scartati · \(Format.bytes(model.totalBytes))")
+            : "\(model.records.count) files · \(model.rejectedCount) rejected · \(Format.bytes(model.totalBytes))")
         .overlay {
             if let message = model.loadingMessage {
                 ProgressView(message).padding().background(.regularMaterial, in: .rect(cornerRadius: 10))
             }
         }
-        .alert("Attenzione", isPresented: Binding(get: { model.errorMessage != nil },
+        .alert("Warning", isPresented: Binding(get: { model.errorMessage != nil },
                                                   set: { if !$0 { model.errorMessage = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(model.errorMessage ?? "")
         }
-        .confirmationDialog("Spostare \(model.rejectedCount) file nel Cestino?", isPresented: $model.confirmTrash,
+        .confirmationDialog("Move \(model.rejectedCount) files to the Trash?", isPresented: $model.confirmTrash,
                             titleVisibility: .visible) {
-            Button("Sposta nel Cestino", role: .destructive) { model.performTrash() }
-            Button("Annulla", role: .cancel) {}
+            Button("Move to Trash", role: .destructive) { model.performTrash() }
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("\(model.rejectedCount) file · \(Format.bytes(model.rejectedBytes)). Potrai recuperarli dal Cestino del Finder.")
+            Text("\(model.rejectedCount) files · \(Format.bytes(model.rejectedBytes)). You can recover them from the Trash in the Finder.")
         }
-        .confirmationDialog("Spostare \"\(model.selectedRecord?.id.lastPathComponent ?? "")\" nel Cestino?",
+        .confirmationDialog("Move \"\(model.selectedRecord?.id.lastPathComponent ?? "")\" to the Trash?",
                             isPresented: $model.confirmTrashCurrent, titleVisibility: .visible) {
-            Button("Sposta nel Cestino", role: .destructive) { model.performTrashCurrent() }
-            Button("Annulla", role: .cancel) {}
+            Button("Move to Trash", role: .destructive) { model.performTrashCurrent() }
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("\(Format.bytes(model.selectedRecord?.file.size ?? 0)). Potrai recuperarlo dal Cestino del Finder.")
+            Text("\(Format.bytes(model.selectedRecord?.file.size ?? 0)). You can recover it from the Trash in the Finder.")
         }
         .sheet(isPresented: Binding(get: { !model.trashFallback.isEmpty },
                                     set: { if !$0 { model.trashFallback = [] } })) {
@@ -92,9 +92,9 @@ struct HintBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text("←/→ naviga · X scarta · Spazio adatta/100% · ⌘⌫ cestino · S stretch \(model.stretchEnabled ? "on" : "off") · L canali \(model.linkedChannels ? "collegati" : "separati")")
+            Text("←/→ navigate · X reject · Space fit/100% · ⌘⌫ trash · S stretch \(model.stretchEnabled ? "on" : "off") · L channels \(model.linkedChannels ? "linked" : "separate")")
             Spacer()
-            Button("Sposta scartati nel Cestino (\(model.rejectedCount))") { model.requestTrash() }
+            Button("Move Rejected to Trash (\(model.rejectedCount))") { model.requestTrash() }
                 .disabled(model.rejectedCount == 0)
         }
         .font(.caption)

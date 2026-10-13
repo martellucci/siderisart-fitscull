@@ -1,13 +1,13 @@
-# FitsCull 1.0.0
+# FitsCull 1.1.0
 
 Visualizzatore rapido di FITS astrofotografici per macOS, per scorrere una sessione di ripresa, valutare
-ogni frame e spostare nel Cestino quelli da scartare.
+ogni frame e spostare nel Cestino quelli da scartare. Interfaccia in inglese.
 
-- Anteprima stretchata automatica (come l'STF di PixInsight), zoom Adatta / 50% / 100% reale.
+- Anteprima stretchata automatica (come l'STF di PixInsight), zoom Fit / 50% / 100% reale.
 - Statistiche per canale: mediana, media, σ, rumore, minimo, massimo, pixel saturi.
 - Metriche stellari per i light: numero di stelle, FWHM (px e ″), HFR, eccentricità.
-- Segnalazioni dei frame anomali rispetto alla sessione, vista Sessione con grafici e soglie.
-- Cestino con conferma, con ripiego in `_scartati/` sui NAS senza Cestino.
+- Segnalazioni dei frame anomali rispetto alla sessione, soglie modificabili in Settings (⌘,), vista Session con grafici e soglie.
+- Cestino con conferma, con ripiego in `_rejected/` sui NAS senza Cestino.
 
 Camere: mono (es. ZWO ASI2600MM) e a colori con matrice Bayer. Header ASIAIR e N.I.N.A.
 FITS non compressi a 2 dimensioni (BITPIX 8/16/32/−32).
@@ -17,7 +17,7 @@ FITS non compressi a 2 dimensioni (BITPIX 8/16/32/−32).
 | Comando | Cosa fa |
 |---|---|
 | `scripts/build-app.sh` | Crea `FitsCull.app` e la installa in `/Volumes/Dati2/applicazioni` |
-| `scripts/test.sh` | Esegue i test (97) |
+| `scripts/test.sh` | Esegue i test (103) |
 | `swift run FitsCull` | Avvia l'app in sviluppo |
 | `swift run -c release fcanalyze <cartella o file>` | Tabella delle metriche e dei tempi per file |
 
@@ -25,19 +25,21 @@ Al primo avvio dell'app installata: clic destro → Apri (firma ad-hoc).
 
 ## Tastiera
 
-←/→ o ↑/↓ naviga · Inizio/Fine primo/ultimo · X scarta/ripristina · Spazio Adatta/100% · ⌘0 Adatta ·
+←/→ o ↑/↓ naviga · Inizio/Fine primo/ultimo · X scarta/ripristina · Spazio Fit/100% · ⌘0 Fit ·
 S stretch · L canali collegati/separati · ⌘⌫ file corrente nel Cestino · ⇧⌘⌫ tutti gli scartati nel Cestino ·
-⌘O apri cartella · ⌘1/⌘2 Revisione/Sessione
+⌘O apri cartella · ⌘1/⌘2 Review/Session · ⌘, Settings
 
 ## Segnalazioni
 
-| Segnalazione | Quando |
+| Segnalazione | Quando (valori predefiniti) |
 |---|---|
-| Fondo alto | fondo > 3000 ADU **e** oltre +30% della mediana di sessione |
-| Poche stelle | stelle < 50% della mediana di sessione |
-| FWHM alta | FWHM > mediana di sessione + 25% |
-| Stelle allungate | eccentricità > 0,75 (≈ 0,68–0,69 in PixInsight) |
+| high background | fondo > 3000 ADU **e** oltre +30% della mediana di sessione |
+| few stars | stelle < 50% della mediana di sessione |
+| high FWHM | FWHM > mediana di sessione + 25% |
+| elongated stars | eccentricità > 0,75 (≈ 0,68–0,69 in PixInsight) |
 
+In **FitsCull → Settings… (⌘,)** ogni regola si può disattivare e ogni valore modificare; "Restore Defaults"
+riporta i valori della tabella. Le impostazioni restano salvate e si applicano subito alla sessione aperta.
 Le segnalazioni non scartano nulla. Dark, flat e bias non hanno metriche stellari.
 
 ## Precisione

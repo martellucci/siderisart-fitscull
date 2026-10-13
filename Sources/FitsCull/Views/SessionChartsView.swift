@@ -19,11 +19,11 @@ struct SessionChartsView: View {
                 VStack(spacing: 18) {
                     MetricChart(title: "FWHM (″)", points: points { $0.stars?.fwhmArcsec ?? $0.stars?.fwhm },
                                 threshold: model.thresholds.maxFWHM, onPick: open)
-                    MetricChart(title: "Stelle", points: points { $0.stars.map { Double($0.count) } },
+                    MetricChart(title: "Stars", points: points { $0.stars.map { Double($0.count) } },
                                 threshold: model.thresholds.minStars.map(Double.init), onPick: open)
-                    MetricChart(title: "Fondo (ADU)", points: points { $0.background },
+                    MetricChart(title: "Background (ADU)", points: points { $0.background },
                                 threshold: model.thresholds.maxBackground, onPick: open)
-                    MetricChart(title: "Eccentricità", points: points { $0.stars?.eccentricity },
+                    MetricChart(title: "Eccentricity", points: points { $0.stars?.eccentricity },
                                 threshold: model.thresholds.maxEccentricity, onPick: open)
                 }
                 .padding()
@@ -59,12 +59,12 @@ struct MetricChart: View {
             Text(title).font(.headline)
             Chart {
                 ForEach(points) { p in
-                    PointMark(x: .value("Ora", p.x), y: .value(title, p.y))
+                    PointMark(x: .value("Time", p.x), y: .value(title, p.y))
                         .foregroundStyle(p.rejected ? Color.red : (p.outOfThreshold ? Color.orange : Color.accentColor))
                         .symbolSize(p.rejected ? 50 : 30)
                 }
                 if let threshold {
-                    RuleMark(y: .value("Soglia", threshold))
+                    RuleMark(y: .value("Threshold", threshold))
                         .foregroundStyle(.orange)
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                 }
@@ -87,16 +87,16 @@ struct ThresholdForm: View {
     var body: some View {
         @Bindable var model = model
         Form {
-            Section("Soglie (vuoto = nessuna)") {
-                TextField("FWHM max (″)", value: $model.thresholds.maxFWHM, format: .number)
-                TextField("Stelle min", value: $model.thresholds.minStars, format: .number)
-                TextField("Fondo max (ADU)", value: $model.thresholds.maxBackground, format: .number)
-                TextField("Eccentricità max", value: $model.thresholds.maxEccentricity, format: .number)
+            Section("Thresholds (empty = none)") {
+                TextField("Max FWHM (″)", value: $model.thresholds.maxFWHM, format: .number)
+                TextField("Min stars", value: $model.thresholds.minStars, format: .number)
+                TextField("Max background (ADU)", value: $model.thresholds.maxBackground, format: .number)
+                TextField("Max eccentricity", value: $model.thresholds.maxEccentricity, format: .number)
             }
             Section {
-                Button("Segna fuori soglia (\(model.outOfThresholdCount))") { model.markOutOfThreshold() }
+                Button("Mark Out of Threshold (\(model.outOfThresholdCount))") { model.markOutOfThreshold() }
                     .disabled(model.outOfThresholdCount == 0)
-                Button("Azzera soglie") { model.thresholds = Thresholds() }
+                Button("Clear Thresholds") { model.thresholds = Thresholds() }
             }
         }
         .formStyle(.grouped)

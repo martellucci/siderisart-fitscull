@@ -29,21 +29,21 @@ struct Preview: @unchecked Sendable {
 }
 
 enum ZoomMode: String, CaseIterable {
-    case fit = "Adatta"
+    case fit = "Fit"
     case half = "50%"
     case full = "100%"
 }
 
 enum ViewMode: String, CaseIterable {
-    case review = "Revisione"
-    case session = "Sessione"
+    case review = "Review"
+    case session = "Session"
 }
 
 enum SortKey: String, CaseIterable {
-    case date = "Data"
+    case date = "Date"
     case fwhm = "FWHM"
-    case stars = "Stelle"
-    case background = "Fondo"
+    case stars = "Stars"
+    case background = "Background"
 }
 
 @MainActor
@@ -82,6 +82,14 @@ final class SessionModel {
     var confirmTrashCurrent = false
     var summary: SessionSummary?
     var thresholds = Thresholds()
+    /// Soglie delle segnalazioni ⚠︎ (Settings, ⌘,); salvate nelle preferenze.
+    var alertSettings = AlertSettings.load() {
+        didSet {
+            guard alertSettings != oldValue else { return }
+            alertSettings.save()
+            refreshSummary()
+        }
+    }
     var previews: [URL: Preview] = [:]
     var loadingMessage: String?
     var errorMessage: String?
@@ -139,7 +147,7 @@ final class SessionModel {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Apri"
+        panel.prompt = "Open"
         if panel.runModal() == .OK, let url = panel.url { open(url) }
     }
 
@@ -155,7 +163,7 @@ final class SessionModel {
         previewsInFlight = []
         summary = nil
         selection = nil
-        loadingMessage = "Lettura intestazioni…"
+        loadingMessage = "Reading headers…"
         Task {
             let result = await Task.detached(priority: .userInitiated) {
                 Result(catching: { try FolderScanner.scan(url) })
@@ -172,7 +180,7 @@ final class SessionModel {
                     return FrameRecord(id: s.file.url, index: i + 1, file: s.file, header: s.header, meta: s.meta,
                                        analysis: cached, status: status)
                 }
-                if records.isEmpty { errorMessage = "Nessun file FITS (.fit, .fits, .fts) in questa cartella." }
+                if records.isEmpty { errorMessage = "No FITS files (.fit, .fits, .fts) in this folder." }
                 if let type = typeFilter, !records.contains(where: { $0.meta?.imageType == type }) { typeFilter = nil }
                 refreshSummary()
                 selection = visibleRecords.first?.id
@@ -227,7 +235,7 @@ final class SessionModel {
                     record.meta = FrameMeta(header: header)
                     record.status = .pending
                 } else {
-                    record.status = .failed("file non leggibile (disco o NAS scollegato?)")
+                    record.status = .failed("file not readable (disk or NAS disconnected?)")
                 }
             }
             pump()
@@ -272,7 +280,7 @@ final class SessionModel {
         removeRecords(report.done)
         trashFallback = []
         if let reason = report.failed.values.first {
-            errorMessage = "Non è stato possibile spostare \(report.failed.count) file: \(reason)"
+            errorMessage = "Could not move \(report.failed.count) file(s): \(reason)"
         }
     }
 
@@ -281,7 +289,7 @@ final class SessionModel {
         removeRecords(report.done)
         trashFallback = []
         if let reason = report.failed.values.first {
-            errorMessage = "Non è stato possibile eliminare \(report.failed.count) file: \(reason)"
+            errorMessage = "Could not delete \(report.failed.count) file(s): \(reason)"
         }
     }
 
@@ -491,7 +499,7 @@ final class SessionModel {
         var updated = records
         for i in updated.indices {
             if let s = newSummary, let a = updated[i].analysis {
-                updated[i].flags = OutlierRules.flags(for: a, in: s)
+                updated[i].flags = OutlierRules.flags(for: a, in: s, settings: alertSettings)
             } else {
                 updated[i].flags = []
             }

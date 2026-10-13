@@ -29,7 +29,7 @@ import Testing
         #expect(!OutlierRules.flags(for: worse20, in: s).contains(.fwhm))
         let worse30 = AnalysisFactory.make(background: 1850, stars: 395, fwhm: m * 1.30)
         #expect(OutlierRules.flags(for: worse30, in: s).contains(.fwhm))
-        #expect(OutlierRules.fwhmRatio == 1.25)
+        #expect(AlertSettings.defaults.fwhmExcessPercent == 25)
     }
 
     /// "Fondo alto" solo se oltre 3000 ADU **e** oltre +30% della mediana di sessione.
@@ -43,7 +43,8 @@ import Testing
         let sb = try #require(OutlierRules.summary(brightSession))
         let absoluteOnly = AnalysisFactory.make(background: 3100, stars: 400, fwhm: 3)
         #expect(!OutlierRules.flags(for: absoluteOnly, in: sb).contains(.background))
-        #expect(OutlierRules.minBackgroundAlert == 3000)
+        #expect(AlertSettings.defaults.minBackgroundADU == 3000)
+        #expect(AlertSettings.defaults.backgroundExcessPercent == 30)
     }
 
     @Test func zeroStarFrameIsFlaggedNotCrashing() throws {
@@ -59,7 +60,7 @@ import Testing
         #expect(OutlierRules.flags(for: trailed, in: s) == [.eccentricity])
         let slightlyElongated = AnalysisFactory.make(background: 1850, stars: 395, fwhm: 3.1, eccentricity: 0.7)
         #expect(OutlierRules.flags(for: slightlyElongated, in: s).isEmpty)
-        #expect(OutlierRules.maxEccentricity == 0.75)
+        #expect(AlertSettings.defaults.maxEccentricity == 0.75)
     }
 
     @Test func calibrationFramesAreNeverFlaggedForStars() throws {
@@ -73,6 +74,74 @@ import Testing
 
     @Test func emptySessionHasNoSummary() {
         #expect(OutlierRules.summary([]) == nil)
+    }
+
+    @Test func disabledRulesNeverFlag() throws {
+        let s = try #require(OutlierRules.summary(Self.normal + [Self.cloud]))
+        var settings = AlertSettings.defaults
+        settings.backgroundEnabled = false
+        settings.fwhmEnabled = false
+        #expect(OutlierRules.flags(for: Self.cloud, in: s, settings: settings) == [.stars])
+        settings.starsEnabled = false
+        #expect(OutlierRules.flags(for: Self.cloud, in: s, settings: settings).isEmpty)
+        let trailed = AnalysisFactory.make(background: 1850, stars: 395, fwhm: 3.1, eccentricity: 0.9)
+        settings.eccentricityEnabled = false
+        #expect(OutlierRules.flags(for: trailed, in: s, settings: settings).isEmpty)
+    }
+
+    @Test func customValuesAreUsed() throws {
+        let s = try #require(OutlierRules.summary(Self.normal))  // mediane: fondo ~1855, stelle 395, FWHM 3,1
+        var settings = AlertSettings.defaults
+        settings.fwhmExcessPercent = 10
+        settings.starsMinPercent = 80
+        settings.backgroundExcessPercent = 10
+        settings.minBackgroundADU = 2000
+        settings.maxEccentricity = 0.5
+        let frame = AnalysisFactory.make(background: 2100, stars: 300, fwhm: 3.5, eccentricity: 0.6)
+        #expect(OutlierRules.flags(for: frame, in: s).isEmpty)
+        #expect(OutlierRules.flags(for: frame, in: s, settings: settings) == [.background, .stars, .fwhm, .eccentricity])
+    }
+
+    @Test func settingsAreClampedToSensibleRanges() {
+        var settings = AlertSettings.defaults
+        settings.backgroundExcessPercent = -5
+        settings.minBackgroundADU = 100_000
+        settings.starsMinPercent = 150
+        settings.fwhmExcessPercent = 900
+        settings.maxEccentricity = 1.5
+        let c = settings.clamped()
+        #expect(c.backgroundExcessPercent == 0)
+        #expect(c.minBackgroundADU == 65535)
+        #expect(c.starsMinPercent == 100)
+        #expect(c.fwhmExcessPercent == 500)
+        #expect(c.maxEccentricity == 1)
+        #expect(AlertSettings.defaults.clamped() == .defaults)
+    }
+
+    @Test func settingsRoundTripThroughJSON() throws {
+        var settings = AlertSettings.defaults
+        settings.starsEnabled = false
+        settings.fwhmExcessPercent = 40
+        let data = try JSONEncoder().encode(settings)
+        #expect(try JSONDecoder().decode(AlertSettings.self, from: data) == settings)
+    }
+
+    @Test func settingsPersistInUserDefaults() throws {
+        let suite = "FitsCullTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        #expect(AlertSettings.load(from: defaults) == .defaults)
+        var settings = AlertSettings.defaults
+        settings.eccentricityEnabled = false
+        settings.maxEccentricity = 0.6
+        settings.save(to: defaults)
+        #expect(AlertSettings.load(from: defaults) == settings)
+        defaults.set(Data("garbage".utf8), forKey: AlertSettings.defaultsKey)
+        #expect(AlertSettings.load(from: defaults) == .defaults)
+        var wild = AlertSettings.defaults
+        wild.starsMinPercent = 400
+        wild.save(to: defaults)
+        #expect(AlertSettings.load(from: defaults).starsMinPercent == 100)
     }
 
     @Test func thresholds() {
