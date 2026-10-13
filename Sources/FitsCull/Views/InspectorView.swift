@@ -65,9 +65,12 @@ struct StatsGrid: View {
     var body: some View {
         let channels = analysis.channels
         Grid(alignment: .trailing, horizontalSpacing: 10, verticalSpacing: 3) {
-            GridRow {
-                Text("")
-                ForEach(analysis.channelNames, id: \.self) { Text($0).bold() }
+            // Con un solo canale (mono) l'intestazione non distingue nulla: il filtro è già nella riga FILE.
+            if channels.count > 1 {
+                GridRow {
+                    Text("")
+                    ForEach(analysis.channelNames, id: \.self) { Text($0).bold() }
+                }
             }
             row("Median", channels.map { Format.number($0.median, digits: 0) })
             row("Mean", channels.map { Format.number($0.mean, digits: 0) })
@@ -93,7 +96,7 @@ struct StarsGrid: View {
 
     var body: some View {
         Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 3) {
-            GridRow { Text("Stars").foregroundStyle(.secondary); Text("\(stars.count)") }
+            GridRow { Text("Stars").foregroundStyle(.secondary); Text(verbatim: "\(stars.count)") }
             GridRow { Text("FWHM").foregroundStyle(.secondary); Text(fwhmText) }
             GridRow { Text("HFR").foregroundStyle(.secondary); Text(Format.number(stars.hfr, digits: 2, suffix: " px")) }
             GridRow { Text("Eccentricity").foregroundStyle(.secondary); Text(Format.number(stars.eccentricity, digits: 2)) }

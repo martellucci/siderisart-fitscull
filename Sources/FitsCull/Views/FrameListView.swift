@@ -8,7 +8,7 @@ struct FrameListView: View {
         @Bindable var model = model
         Table(model.visibleRecords, selection: $model.selection) {
             TableColumn("#") { r in
-                Text("\(r.index)").monospacedDigit().strikethrough(r.rejected)
+                Text(verbatim: "\(r.index)").monospacedDigit().strikethrough(r.rejected)
             }
             .width(36)
             TableColumn("Time") { r in Text(r.meta?.dateObs.map(Format.time) ?? "–").monospacedDigit() }
