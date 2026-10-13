@@ -64,6 +64,8 @@ consistently 9–11% higher, with the same frame ranking. Details in `docs/valid
 
 Toolchain: Command Line Tools for Xcode 26.6, Swift 6.3 (Xcode not required).
 
+License: MIT — see `LICENSE`.
+
 ---
 
 ## Italiano
@@ -124,3 +126,5 @@ in modo costante, con lo stesso ordine dei frame. Dettagli in `docs/validation-2
 - `CHANGELOG.md` — modifiche
 
 Toolchain: Command Line Tools for Xcode 26.6, Swift 6.3 (Xcode non richiesto).
+
+Licenza: MIT — vedi `LICENSE`.
