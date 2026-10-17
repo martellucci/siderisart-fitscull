@@ -3,6 +3,7 @@ import SwiftUI
 
 struct InspectorView: View {
     @Environment(SessionModel.self) private var model
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         ScrollView {
@@ -13,6 +14,10 @@ struct InspectorView: View {
                         if let meta = record.meta {
                             Text(Format.metaLine(meta)).font(.caption)
                             Text(Format.opticsLine(meta)).font(.caption)
+                        }
+                        if record.header != nil {
+                            Button("FITS Header…") { openWindow(id: FITSHeaderView.windowID) }
+                                .controlSize(.small)
                         }
                     }
                     if let analysis = record.analysis {
@@ -25,22 +30,15 @@ struct InspectorView: View {
                                 .font(.caption).foregroundStyle(.orange)
                         }
                     }
+                    if let series = model.seriesRecords {
+                        section("SESSION · \(series.group.label) · \(series.records.count) frames") {
+                            FrameMetricsView(group: series.group, records: series.records)
+                        }
+                    }
                     if let preview = model.previews[record.id] {
                         section("HISTOGRAM (displayed)") {
                             HistogramView(histogram: preview.histogram).frame(height: 80)
                         }
-                    }
-                    if let header = record.header {
-                        DisclosureGroup("FITS Header (\(header.cards.count))") {
-                            LazyVStack(alignment: .leading, spacing: 1) {
-                                ForEach(Array(header.cards.enumerated()), id: \.offset) { _, card in
-                                    Text(card.raw.trimmingCharacters(in: .whitespaces))
-                                        .font(.system(.caption2, design: .monospaced))
-                                        .textSelection(.enabled)
-                                }
-                            }
-                        }
-                        .font(.caption)
                     }
                 }
                 .padding(12)

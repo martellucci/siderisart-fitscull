@@ -81,6 +81,11 @@ public enum OutlierRules {
                               medianFWHM: medianFWHM)
     }
 
+    /// Mediane separate per gruppo (tipo + filtro): un frame Ha non si confronta con i frame L.
+    public static func summaries(_ analyses: [FrameAnalysis]) -> [FrameGroup: SessionSummary] {
+        Dictionary(grouping: analyses) { FrameGroup($0.meta) }.compactMapValues(summary)
+    }
+
     public static func flags(for a: FrameAnalysis, in s: SessionSummary, settings: AlertSettings = .defaults) -> OutlierFlags {
         var flags: OutlierFlags = []
         if settings.backgroundEnabled, s.medianBackground > 0,

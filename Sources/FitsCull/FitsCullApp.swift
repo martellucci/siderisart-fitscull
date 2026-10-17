@@ -27,6 +27,12 @@ struct FitsCullApp: App {
             ReviewCommands(model: model)
         }
 
+        Window("FITS Header", id: FITSHeaderView.windowID) {
+            FITSHeaderView()
+                .environment(model)
+        }
+        .defaultSize(width: 640, height: 680)
+
         Settings {
             SettingsView()
                 .environment(model)

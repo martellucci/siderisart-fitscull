@@ -1,4 +1,4 @@
-# FitsCull 1.1.0
+# FitsCull 1.2.0
 
 **[English](#english) · [Italiano](#italiano)**
 
@@ -12,8 +12,12 @@ and move the bad ones to the Trash.
 - Automatic stretched preview (like PixInsight's STF), Fit / 50% / true 100% zoom.
 - Per-channel statistics: median, mean, σ, noise, minimum, maximum, saturated pixels.
 - Star metrics for lights: star count, FWHM (px and ″), HFR, eccentricity.
-- Flags for frames that stand out from the session, with thresholds you can change in Settings (⌘,);
-  Session view with charts and manual thresholds.
+- PixInsight-style charts in the right column (stars, background, FWHM, eccentricity) for every light with
+  the same filter as the current frame, in capture order: the current frame is light blue, rejected frames are red,
+  the dashed line is the median; click a column to jump to that frame.
+- Flags for frames that stand out from the other frames with the same filter, with thresholds you can change in
+  Settings (⌘,); Session view with charts and manual thresholds.
+- FITS header in its own window ("FITS Header…" button), following the selected file.
 - Trash with confirmation, falling back to a `_rejected/` folder on NAS volumes without a Trash.
 
 Cameras: mono (e.g. ZWO ASI2600MM) and Bayer-matrix colour. ASIAIR and N.I.N.A. headers.
@@ -24,7 +28,7 @@ Uncompressed 2-D FITS (BITPIX 8/16/32/−32).
 | Command | What it does |
 |---|---|
 | `scripts/build-app.sh [destination]` | Builds `FitsCull.app` and installs it in the destination folder (default `/Volumes/Dati2/applicazioni`) |
-| `scripts/test.sh` | Runs the tests (103) |
+| `scripts/test.sh` | Runs the tests (112) |
 | `swift run FitsCull` | Runs the app in development |
 | `swift run -c release fcanalyze <folder or file>` | Table of metrics and timings per file |
 
@@ -40,14 +44,16 @@ S stretch · L linked/separate channels · ⌘⌫ current file to Trash · ⇧�
 
 | Flag | When (defaults) |
 |---|---|
-| high background | background > 3000 ADU **and** more than 30% above the session median |
-| few stars | stars < 50% of the session median |
-| high FWHM | FWHM > session median + 25% |
+| high background | background > 3000 ADU **and** more than 30% above the median |
+| few stars | stars < 50% of the median |
+| high FWHM | FWHM > median + 25% |
 | elongated stars | eccentricity > 0.75 (≈ 0.68–0.69 in PixInsight) |
 
 In **FitsCull → Settings… (⌘,)** each rule can be turned off and each value changed; "Restore Defaults"
 brings back the values above. Settings are saved and apply immediately to the open session.
-Flags never reject anything on their own. Darks, flats and biases have no star metrics.
+The median is computed per image type and filter: with L, R, G, B and Ha in the same folder each frame is
+compared only with frames taken through the same filter. Flags never reject anything on their own. Darks, flats
+and biases have no star metrics.
 
 ### Accuracy
 
@@ -76,8 +82,12 @@ ogni frame e spostare nel Cestino quelli da scartare. Interfaccia in inglese.
 - Anteprima stretchata automatica (come l'STF di PixInsight), zoom Fit / 50% / 100% reale.
 - Statistiche per canale: mediana, media, σ, rumore, minimo, massimo, pixel saturi.
 - Metriche stellari per i light: numero di stelle, FWHM (px e ″), HFR, eccentricità.
-- Segnalazioni dei frame anomali rispetto alla sessione, soglie modificabili in Settings (⌘,);
+- Grafici in stile PixInsight nella colonna di destra (stelle, fondo, FWHM, eccentricità) per tutti i light dello
+  stesso filtro del frame corrente, in ordine di ripresa: frame corrente in azzurro, scartati in rosso, mediana
+  tratteggiata; clic su una colonna per aprire quel frame.
+- Segnalazioni dei frame anomali rispetto agli altri dello stesso filtro, soglie modificabili in Settings (⌘,);
   vista Session con grafici e soglie manuali.
+- Header FITS in una finestra a parte (pulsante "FITS Header…"), che segue il file selezionato.
 - Cestino con conferma, con ripiego in `_rejected/` sui NAS senza Cestino.
 
 Camere: mono (es. ZWO ASI2600MM) e a colori con matrice Bayer. Header ASIAIR e N.I.N.A.
@@ -88,7 +98,7 @@ FITS non compressi a 2 dimensioni (BITPIX 8/16/32/−32).
 | Comando | Cosa fa |
 |---|---|
 | `scripts/build-app.sh [destinazione]` | Crea `FitsCull.app` e la installa nella cartella indicata (predefinita `/Volumes/Dati2/applicazioni`) |
-| `scripts/test.sh` | Esegue i test (103) |
+| `scripts/test.sh` | Esegue i test (112) |
 | `swift run FitsCull` | Avvia l'app in sviluppo |
 | `swift run -c release fcanalyze <cartella o file>` | Tabella delle metriche e dei tempi per file |
 
@@ -104,14 +114,16 @@ S stretch · L canali collegati/separati · ⌘⌫ file corrente nel Cestino · 
 
 | Segnalazione | Quando (valori predefiniti) |
 |---|---|
-| high background | fondo > 3000 ADU **e** oltre +30% della mediana di sessione |
-| few stars | stelle < 50% della mediana di sessione |
-| high FWHM | FWHM > mediana di sessione + 25% |
+| high background | fondo > 3000 ADU **e** oltre +30% della mediana |
+| few stars | stelle < 50% della mediana |
+| high FWHM | FWHM > mediana + 25% |
 | elongated stars | eccentricità > 0,75 (≈ 0,68–0,69 in PixInsight) |
 
 In **FitsCull → Settings… (⌘,)** ogni regola si può disattivare e ogni valore modificare; "Restore Defaults"
 riporta i valori della tabella. Le impostazioni restano salvate e si applicano subito alla sessione aperta.
-Le segnalazioni non scartano nulla. Dark, flat e bias non hanno metriche stellari.
+La mediana è calcolata per tipo di immagine e filtro: con L, R, G, B e Ha nella stessa cartella ogni frame si
+confronta solo con quelli dello stesso filtro. Le segnalazioni non scartano nulla. Dark, flat e bias non hanno
+metriche stellari.
 
 ### Precisione
 

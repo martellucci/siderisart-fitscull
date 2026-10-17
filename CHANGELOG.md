@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0 — 2026-10-17
+
+- Grafici della serie nella colonna di destra, in stile PixInsight, sotto statistiche e stelle: Stars,
+  Background, FWHM ed Eccentricity, una colonna per light dello **stesso filtro** del frame selezionato, in ordine
+  di ripresa. Frame corrente in azzurro (con il suo valore accanto al titolo), scartati in rosso, mediana
+  tratteggiata con il valore; clic su una colonna = apre quel frame.
+- Segnalazioni ⚠︎ calcolate sulle mediane **per filtro** (tipo + filtro): con L, R, G, B e Ha nella stessa
+  cartella ogni frame si confronta solo con quelli del suo filtro.
+- FITS Header in una finestra separata (pulsante "FITS Header…" nella sezione FILE, o menù Window), che segue il
+  file selezionato; la sezione è uscita dalla colonna di destra, ora larga almeno 300 punti.
+
 ## 1.1.0 — 2026-10-13
 
 - Finestra **Settings** (FitsCull → Settings…, ⌘,) per le segnalazioni: ogni regola (fondo, stelle, FWHM,

@@ -80,7 +80,8 @@ final class SessionModel {
     var fullResolution: (url: URL, preview: Preview)?
     var fullResolutionLoading: URL?
     var confirmTrashCurrent = false
-    var summary: SessionSummary?
+    /// Mediane per gruppo (tipo + filtro), base delle segnalazioni ⚠︎.
+    var summaries: [FrameGroup: SessionSummary] = [:]
     var thresholds = Thresholds()
     /// Soglie delle segnalazioni ⚠︎ (Settings, ⌘,); salvate nelle preferenze.
     var alertSettings = AlertSettings.load() {
@@ -132,6 +133,18 @@ final class SessionModel {
         selection.flatMap { id in records.first { $0.id == id } }
     }
 
+    /// Frame dei grafici della colonna di destra: i light dello stesso filtro del frame selezionato,
+    /// in ordine di ripresa (`records` è già cronologico). nil per dark, flat e bias.
+    var seriesRecords: (group: FrameGroup, records: [FrameRecord])? {
+        guard let meta = selectedRecord?.meta, meta.imageType.hasStars else { return nil }
+        let group = FrameGroup(meta)
+        let list = records.filter { r in
+            if case .failed = r.status { return false }
+            return r.meta.map(FrameGroup.init) == group
+        }
+        return (group, list)
+    }
+
     var rejectedCount: Int { records.filter(\.rejected).count }
 
     var totalBytes: Int64 { records.reduce(0) { $0 + $1.file.size } }
@@ -161,7 +174,7 @@ final class SessionModel {
         currentSource = nil
         analysesInFlight = []
         previewsInFlight = []
-        summary = nil
+        summaries = [:]
         selection = nil
         loadingMessage = "Reading headers…"
         Task {
@@ -495,16 +508,17 @@ final class SessionModel {
     }
 
     func refreshSummary() {
-        let newSummary = OutlierRules.summary(records.filter(isVisible).compactMap(\.analysis))
+        // Mediane per filtro: con L e Ha nella stessa cartella ognuno si confronta con i suoi.
+        let newSummaries = OutlierRules.summaries(records.compactMap(\.analysis))
         var updated = records
         for i in updated.indices {
-            if let s = newSummary, let a = updated[i].analysis {
+            if let a = updated[i].analysis, let s = newSummaries[FrameGroup(a.meta)] {
                 updated[i].flags = OutlierRules.flags(for: a, in: s, settings: alertSettings)
             } else {
                 updated[i].flags = []
             }
         }
-        summary = newSummary
+        summaries = newSummaries
         records = updated
     }
 }

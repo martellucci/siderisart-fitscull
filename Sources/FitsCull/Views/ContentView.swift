@@ -13,7 +13,7 @@ struct ContentView: View {
                 MainPane()
                     .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
                 InspectorView()
-                    .frame(minWidth: 240, idealWidth: 290, maxWidth: 380)
+                    .frame(minWidth: 300, idealWidth: 330, maxWidth: 420)
             }
             HintBar()
         }
