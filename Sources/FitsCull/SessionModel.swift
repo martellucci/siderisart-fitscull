@@ -39,11 +39,42 @@ enum ViewMode: String, CaseIterable {
     case session = "Session"
 }
 
-enum SortKey: String, CaseIterable {
-    case date = "Date"
-    case fwhm = "FWHM"
-    case stars = "Stars"
-    case background = "Background"
+/// Colonne della tabella ordinabili cliccando l'intestazione.
+enum FrameColumn {
+    case index, time, exposure, background, fwhm, stars, eccentricity, status
+
+    func value(_ r: FrameRecord) -> Double? {
+        switch self {
+        case .index: Double(r.index)
+        case .time: r.meta?.dateObs?.timeIntervalSince1970
+        case .exposure: r.meta?.exposure
+        case .background: r.analysis?.background
+        case .fwhm: r.analysis?.stars?.fwhmArcsec ?? r.analysis?.stars?.fwhm
+        case .stars: r.analysis?.stars.map { Double($0.count) }
+        case .eccentricity: r.analysis?.stars?.eccentricity
+        case .status: Self.statusRank(r)
+        }
+    }
+
+    /// Crescente: ✓, ⚠︎, scartati, errori; i frame in attesa di analisi in fondo.
+    private static func statusRank(_ r: FrameRecord) -> Double? {
+        if r.rejected { return 2 }
+        switch r.status {
+        case .done: return r.flags.isEmpty ? 0 : 1
+        case .failed: return 3
+        case .pending, .analyzing: return nil
+        }
+    }
+}
+
+/// Ordine scelto dall'intestazione della tabella; SwiftUI ne inverte `order` al secondo clic.
+struct FrameSort: SortComparator {
+    var column: FrameColumn
+    var order: SortOrder = .forward
+
+    func compare(_ lhs: FrameRecord, _ rhs: FrameRecord) -> ComparisonResult {
+        RowOrder.compare((column.value(lhs), lhs.index), (column.value(rhs), rhs.index), ascending: order == .forward)
+    }
 }
 
 @MainActor
@@ -62,7 +93,8 @@ final class SessionModel {
             pump()
         }
     }
-    var sortKey: SortKey = .date
+    /// Ordine della tabella (intestazioni); le frecce seguono lo stesso ordine.
+    var sortOrder: [FrameSort] = [FrameSort(column: .index)]
     var viewMode: ViewMode = .review
     var stretchEnabled = true {
         didSet { invalidatePreviews() }
@@ -117,16 +149,8 @@ final class SessionModel {
 
     var visibleRecords: [FrameRecord] {
         let list = records.filter(isVisible)
-        switch sortKey {
-        case .date:
-            return list
-        case .fwhm:
-            return list.sorted { ($0.analysis?.stars?.fwhm ?? .infinity) < ($1.analysis?.stars?.fwhm ?? .infinity) }
-        case .stars:
-            return list.sorted { ($0.analysis?.stars?.count ?? -1) > ($1.analysis?.stars?.count ?? -1) }
-        case .background:
-            return list.sorted { ($0.analysis?.background ?? .infinity) < ($1.analysis?.background ?? .infinity) }
-        }
+        guard let sort = sortOrder.first else { return list }
+        return RowOrder.sorted(list, ascending: sort.order == .forward, value: sort.column.value, index: \.index)
     }
 
     var selectedRecord: FrameRecord? {

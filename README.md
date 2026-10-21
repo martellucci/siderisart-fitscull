@@ -1,4 +1,4 @@
-# FitsCull 1.2.0
+# FitsCull 1.3.0
 
 **[English](#english) · [Italiano](#italiano)**
 
@@ -14,7 +14,9 @@ and move the bad ones to the Trash.
 - Star metrics for lights: star count, FWHM (px and ″), HFR, eccentricity.
 - PixInsight-style charts in the right column (stars, background, FWHM, eccentricity) for every light with
   the same filter as the current frame, in capture order: the current frame is light blue, rejected frames are red,
-  the dashed line is the median; click a column to jump to that frame.
+  the dashed line is the median; click a column to jump to that frame, click the icon on a chart to sort its
+  columns ascending or descending.
+- File list sortable by clicking the column headers; it scrolls by itself to keep the current frame in view.
 - Flags for frames that stand out from the other frames with the same filter, with thresholds you can change in
   Settings (⌘,); Session view with charts and manual thresholds.
 - FITS header in its own window ("FITS Header…" button), following the selected file.
@@ -28,7 +30,7 @@ Uncompressed 2-D FITS (BITPIX 8/16/32/−32).
 | Command | What it does |
 |---|---|
 | `scripts/build-app.sh [destination]` | Builds `FitsCull.app` and installs it in the destination folder (default `/Volumes/Dati2/applicazioni`) |
-| `scripts/test.sh` | Runs the tests (112) |
+| `scripts/test.sh` | Runs the tests (116) |
 | `swift run FitsCull` | Runs the app in development |
 | `swift run -c release fcanalyze <folder or file>` | Table of metrics and timings per file |
 
@@ -36,7 +38,7 @@ The app is ad-hoc signed: the first time, right-click it → Open.
 
 ### Keyboard
 
-←/→ or ↑/↓ navigate · Home/End first/last · X reject/restore · Space Fit/100% · ⌘0 Fit ·
+←/→ or ↑/↓ navigate (in the list order) · Home/End first/last · X reject/restore · Space Fit/100% · ⌘0 Fit ·
 S stretch · L linked/separate channels · ⌘⌫ current file to Trash · ⇧⌘⌫ all rejected to Trash ·
 ⌘O open folder · ⌘1/⌘2 Review/Session · ⌘, Settings
 
@@ -84,7 +86,9 @@ ogni frame e spostare nel Cestino quelli da scartare. Interfaccia in inglese.
 - Metriche stellari per i light: numero di stelle, FWHM (px e ″), HFR, eccentricità.
 - Grafici in stile PixInsight nella colonna di destra (stelle, fondo, FWHM, eccentricità) per tutti i light dello
   stesso filtro del frame corrente, in ordine di ripresa: frame corrente in azzurro, scartati in rosso, mediana
-  tratteggiata; clic su una colonna per aprire quel frame.
+  tratteggiata; clic su una colonna per aprire quel frame, clic sull'icona del grafico per ordinarne le colonne
+  in modo crescente o decrescente.
+- Tabella dei file ordinabile cliccando le intestazioni; scorre da sola per tenere in vista il frame corrente.
 - Segnalazioni dei frame anomali rispetto agli altri dello stesso filtro, soglie modificabili in Settings (⌘,);
   vista Session con grafici e soglie manuali.
 - Header FITS in una finestra a parte (pulsante "FITS Header…"), che segue il file selezionato.
@@ -98,7 +102,7 @@ FITS non compressi a 2 dimensioni (BITPIX 8/16/32/−32).
 | Comando | Cosa fa |
 |---|---|
 | `scripts/build-app.sh [destinazione]` | Crea `FitsCull.app` e la installa nella cartella indicata (predefinita `/Volumes/Dati2/applicazioni`) |
-| `scripts/test.sh` | Esegue i test (112) |
+| `scripts/test.sh` | Esegue i test (116) |
 | `swift run FitsCull` | Avvia l'app in sviluppo |
 | `swift run -c release fcanalyze <cartella o file>` | Tabella delle metriche e dei tempi per file |
 
@@ -106,7 +110,7 @@ Al primo avvio dell'app installata: clic destro → Apri (firma ad-hoc).
 
 ### Tastiera
 
-←/→ o ↑/↓ naviga · Inizio/Fine primo/ultimo · X scarta/ripristina · Spazio Fit/100% · ⌘0 Fit ·
+←/→ o ↑/↓ naviga (nell'ordine della tabella) · Inizio/Fine primo/ultimo · X scarta/ripristina · Spazio Fit/100% · ⌘0 Fit ·
 S stretch · L canali collegati/separati · ⌘⌫ file corrente nel Cestino · ⇧⌘⌫ tutti gli scartati nel Cestino ·
 ⌘O apri cartella · ⌘1/⌘2 Review/Session · ⌘, Settings
 

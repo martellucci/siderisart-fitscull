@@ -27,10 +27,6 @@ struct ContentView: View {
                     ForEach(model.availableTypes, id: \.self) { Text($0.label).tag(Optional($0)) }
                 }
                 .pickerStyle(.menu)
-                Picker("Sort", selection: $model.sortKey) {
-                    ForEach(SortKey.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.menu)
                 Picker("View", selection: $model.viewMode) {
                     ForEach(ViewMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }

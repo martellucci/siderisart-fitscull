@@ -66,4 +66,21 @@ import Testing
         #expect(flatDomain.contains(3) && flatDomain.lowerBound < flatDomain.upperBound)
         #expect(MetricSeries(.stars, frames: [(Self.url(1), nil, false)]).axisDomain == nil)
     }
+
+    /// Icona sul grafico: ordine di ripresa → crescente → decrescente → di nuovo ripresa.
+    /// A parità di valore resta l'ordine di ripresa; i frame senza valore vanno sempre in fondo.
+    @Test func sortedBars() {
+        let values: [Double?] = [3, nil, 1, 2, 1]
+        let frames = values.enumerated().map { i, v in
+            (Self.url(i), v.map { AnalysisFactory.make(background: $0, stars: 1, fwhm: 3) }, false)
+        }
+        let s = MetricSeries(.background, frames: frames)
+        #expect(s.sorted(.capture) == s)
+        #expect(s.sorted(.ascending).bars.map(\.id) == [Self.url(2), Self.url(4), Self.url(3), Self.url(0), Self.url(1)])
+        #expect(s.sorted(.descending).bars.map(\.id) == [Self.url(0), Self.url(3), Self.url(2), Self.url(4), Self.url(1)])
+        #expect(s.sorted(.ascending).median == s.median)
+        #expect(BarOrder.capture.next == .ascending)
+        #expect(BarOrder.ascending.next == .descending)
+        #expect(BarOrder.descending.next == .capture)
+    }
 }

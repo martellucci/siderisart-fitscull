@@ -21,9 +21,11 @@ struct InspectorView: View {
                         }
                     }
                     if let analysis = record.analysis {
-                        section("STATISTICS") { StatsGrid(analysis: analysis) }
-                        if let stars = analysis.stars {
-                            section("STARS") { StarsGrid(stars: stars) }
+                        // Affiancate per lasciare spazio ai grafici; una sotto l'altra se non ci stanno
+                        // (camere a colori: tre colonne R/G/B nelle statistiche).
+                        ViewThatFits(in: .horizontal) {
+                            HStack(alignment: .top, spacing: 18) { statsAndStars(analysis) }
+                            VStack(alignment: .leading, spacing: 14) { statsAndStars(analysis) }
                         }
                         if !record.flags.isEmpty {
                             Label(Format.flags(record.flags), systemImage: "exclamationmark.triangle")
@@ -46,6 +48,14 @@ struct InspectorView: View {
             } else {
                 Text("No file selected").foregroundStyle(.secondary).padding()
             }
+        }
+    }
+
+    @ViewBuilder
+    private func statsAndStars(_ analysis: FrameAnalysis) -> some View {
+        section("STATISTICS") { StatsGrid(analysis: analysis) }
+        if let stars = analysis.stars {
+            section("STARS") { StarsGrid(stars: stars) }
         }
     }
 

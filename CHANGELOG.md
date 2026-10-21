@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.0 — 2026-10-21
+
+- Tabella a sinistra ordinabile cliccando le intestazioni (#, Time, Exp, Bkg, FWHM″, ★, Ecc, Status): primo clic
+  crescente, secondo decrescente. I frame non ancora analizzati restano in fondo in entrambi i versi, a parità di
+  valore vale l'ordine di ripresa; Status crescente = ✓, ⚠︎, scartati, errori. Le frecce seguono l'ordine della
+  tabella. Tolto il menù "Sort" della barra, sostituito dalle intestazioni.
+- La tabella scorre da sola per tenere in vista il frame selezionato: navigando con le frecce, cliccando una
+  colonna dei grafici e dopo un riordino.
+- Icona su ogni grafico della serie per ordinarne le colonne: ordine di ripresa → crescente → decrescente.
+  Ogni grafico ha il suo ordine, che resta passando da un frame all'altro; frame corrente sempre in azzurro.
+- STATISTICS e STARS affiancate nella colonna di destra, per lasciare spazio ai grafici; tornano una sotto
+  l'altra quando non ci stanno (camere a colori con la colonna stretta).
+
 ## 1.2.0 — 2026-10-17
 
 - Grafici della serie nella colonna di destra, in stile PixInsight, sotto statistiche e stelle: Stars,

@@ -2,7 +2,8 @@ import FitsCullCore
 import SwiftUI
 
 /// Grafici della serie (stile PixInsight): una colonna per light dello stesso filtro del frame selezionato,
-/// in ordine di ripresa. Frame corrente in azzurro, scartati in rosso; clic su una colonna = apre quel frame.
+/// in ordine di ripresa o ordinate per valore. Frame corrente in azzurro, scartati in rosso;
+/// clic su una colonna = apre quel frame.
 struct FrameMetricsView: View {
     @Environment(SessionModel.self) private var model
     let group: FrameGroup
@@ -44,6 +45,9 @@ struct MetricBarChart: View {
     let currentIndex: Int?
     let onPick: (URL) -> Void
 
+    /// Ordine scelto con l'icona del grafico; resta mentre si passa da un frame all'altro.
+    @State private var order: BarOrder = .capture
+
     private let gutter: CGFloat = 40
     private let inset: CGFloat = 4
 
@@ -56,13 +60,22 @@ struct MetricBarChart: View {
                     Text(verbatim: "#\(currentIndex): \(Format.number(value, digits: digits))")
                         .foregroundStyle(ChartColor.current)
                 }
+                Button { order = order.next } label: {
+                    Image(systemName: order.symbol)
+                        .foregroundStyle(order == .capture ? ChartColor.label : ChartColor.current)
+                        .frame(width: 16, height: 12)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(order.help)
             }
             .font(.caption2.bold().monospacedDigit())
             .padding(.horizontal, 4)
             GeometryReader { geo in
-                Canvas { context, size in draw(in: &context, size: size) }
+                let shown = series.sorted(order)
+                Canvas { context, size in draw(shown, in: &context, size: size) }
                     .contentShape(Rectangle())
-                    .onTapGesture { location in pick(at: location.x, width: geo.size.width) }
+                    .onTapGesture { location in pick(shown, at: location.x, width: geo.size.width) }
             }
             .frame(height: 92)
         }
@@ -75,14 +88,14 @@ struct MetricBarChart: View {
         CGRect(x: gutter, y: inset, width: max(size.width - gutter - inset, 1), height: max(size.height - 2 * inset, 1))
     }
 
-    private func pick(at x: CGFloat, width: CGFloat) {
+    private func pick(_ series: MetricSeries, at x: CGFloat, width: CGFloat) {
         guard !series.bars.isEmpty else { return }
         let plot = plotRect(CGSize(width: width, height: 1))
         let i = Int((x - plot.minX) / plot.width * CGFloat(series.bars.count))
         onPick(series.bars[min(max(i, 0), series.bars.count - 1)].id)
     }
 
-    private func draw(in context: inout GraphicsContext, size: CGSize) {
+    private func draw(_ series: MetricSeries, in context: inout GraphicsContext, size: CGSize) {
         let plot = plotRect(size)
         guard let domain = series.axisDomain else {
             context.draw(Text("Waiting for analysis…").font(.caption2).foregroundStyle(ChartColor.label),
@@ -139,5 +152,23 @@ struct MetricBarChart: View {
         axis.move(to: CGPoint(x: plot.minX, y: plot.minY))
         axis.addLine(to: CGPoint(x: plot.minX, y: plot.maxY))
         context.stroke(axis, with: .color(ChartColor.label.opacity(0.6)), lineWidth: 1)
+    }
+}
+
+private extension BarOrder {
+    var symbol: String {
+        switch self {
+        case .capture: "chart.bar.xaxis"
+        case .ascending: "chart.bar.xaxis.ascending"
+        case .descending: "chart.bar.xaxis.descending"
+        }
+    }
+
+    var help: String {
+        switch self {
+        case .capture: "Capture order — click to sort ascending"
+        case .ascending: "Ascending — click to sort descending"
+        case .descending: "Descending — click for capture order"
+        }
     }
 }
