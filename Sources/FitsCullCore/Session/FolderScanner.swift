@@ -23,7 +23,8 @@ public struct ScannedFrame: Sendable, Identifiable {
 
 public enum UserMessage {
     public static func from(_ error: Error) -> String {
-        (error as? FITSError)?.description ?? error.localizedDescription
+        (error as? FITSError)?.description ?? (error as? FrameTypeConversion.Failure)?.description
+            ?? error.localizedDescription
     }
 }
 

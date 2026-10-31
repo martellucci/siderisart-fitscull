@@ -13,7 +13,7 @@ enum FrameStatus: Equatable {
 struct FrameRecord: Identifiable {
     let id: URL
     /// Posizione cronologica nella cartella (1…n).
-    let index: Int
+    var index: Int
     var file: FrameFile
     var header: FITSHeader?
     var meta: FrameMeta?
@@ -127,6 +127,9 @@ final class SessionModel {
     var loadingMessage: String?
     var errorMessage: String?
     var confirmTrash = false
+    var confirmConvertCurrent = false
+    /// Cartella scelta per la conversione in blocco (apre il foglio).
+    var conversionFolder: URL?
     var trashFallback: [URL] = []
     var trashFallbackReason: String?
 
@@ -211,18 +214,40 @@ final class SessionModel {
             case .failure(let error):
                 errorMessage = UserMessage.from(error)
             case .success(let scanned):
-                records = scanned.enumerated().map { i, s in
-                    let cached = s.meta == nil ? nil : cache.lookup(s.file)
-                    let status: FrameStatus = if let e = s.headerError { .failed(e) } else if cached != nil { .done } else { .pending }
-                    return FrameRecord(id: s.file.url, index: i + 1, file: s.file, header: s.header, meta: s.meta,
-                                       analysis: cached, status: status)
-                }
+                records = scanned.enumerated().map { i, s in makeRecord(s, index: i + 1) }
                 if records.isEmpty { errorMessage = "No FITS files (.fit, .fits, .fts) in this folder." }
                 if let type = typeFilter, !records.contains(where: { $0.meta?.imageType == type }) { typeFilter = nil }
                 refreshSummary()
                 selection = visibleRecords.first?.id
                 pump()
             }
+        }
+    }
+
+    private func makeRecord(_ s: ScannedFrame, index: Int) -> FrameRecord {
+        let cached = s.meta == nil ? nil : cache.lookup(s.file)
+        let status: FrameStatus = if let e = s.headerError { .failed(e) } else if cached != nil { .done } else { .pending }
+        return FrameRecord(id: s.file.url, index: index, file: s.file, header: s.header, meta: s.meta,
+                           analysis: cached, status: status)
+    }
+
+    /// Rilegge l'elenco della cartella aperta (es. dopo una conversione) tenendo analisi, scarti e selezione.
+    func refreshFolder() {
+        guard let url = folder else { return }
+        let gen = generation
+        Task {
+            let scanned = await Task.detached(priority: .userInitiated) { try? FolderScanner.scan(url) }.value
+            guard gen == generation, let scanned else { return }
+            let old = Dictionary(uniqueKeysWithValues: records.map { ($0.id, $0) })
+            records = scanned.enumerated().map { i, s in
+                guard var record = old[s.file.url] else { return makeRecord(s, index: i + 1) }
+                record.index = i + 1
+                return record
+            }
+            refreshSummary()
+            let visible = SelectionPolicy.reconcile(selection, visible: visibleRecords.map(\.id))
+            if visible != selection { selection = visible }
+            pump()
         }
     }
 
@@ -346,6 +371,53 @@ final class SessionModel {
         saveCache()
         selection = next
         refreshSummary()
+    }
+
+    // MARK: - Cambio di tipo
+
+    /// Tipi in cui si può convertire il file corrente; vuoto se non è un Light, Dark o Flat.
+    var conversionTargets: [ImageType] {
+        guard let type = selectedRecord?.meta?.imageType, FrameTypeConversion.types.contains(type) else { return [] }
+        return FrameTypeConversion.types.filter { $0 != type }
+    }
+
+    func requestConvertCurrent() {
+        guard selectedRecord?.meta != nil else { return }
+        if conversionTargets.isEmpty {
+            errorMessage = "Only Light, Dark and Flat frames can be converted."
+        } else {
+            confirmConvertCurrent = true
+        }
+    }
+
+    /// Copia convertita del file corrente nella stessa cartella; l'originale resta selezionato.
+    func performConvertCurrent(to type: ImageType) {
+        guard let url = selection else { return }
+        Task {
+            let result = await Task.detached(priority: .userInitiated) {
+                Result(catching: { try FrameTypeConversion.convert(url, to: type) })
+            }.value
+            switch result {
+            case .success: refreshFolder()
+            case .failure(let error): errorMessage = "Could not convert \"\(url.lastPathComponent)\": \(UserMessage.from(error))"
+            }
+        }
+    }
+
+    func chooseConversionFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = folder
+        panel.message = "Choose the folder with the frames to convert"
+        panel.prompt = "Choose"
+        if panel.runModal() == .OK, let url = panel.url { conversionFolder = url }
+    }
+
+    /// Dopo una conversione in blocco: se riguarda la cartella aperta, la lista mostra le nuove copie.
+    func conversionFinished(in url: URL) {
+        if url.standardizedFileURL == folder?.standardizedFileURL { refreshFolder() }
     }
 
     // MARK: - Scheduling dell'analisi

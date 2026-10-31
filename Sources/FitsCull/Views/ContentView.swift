@@ -61,6 +61,19 @@ struct ContentView: View {
         } message: {
             Text("\(Format.bytes(model.selectedRecord?.file.size ?? 0)). You can recover it from the Trash in the Finder.")
         }
+        .confirmationDialog("Convert \"\(model.selectedRecord?.id.lastPathComponent ?? "")\"?",
+                            isPresented: $model.confirmConvertCurrent, titleVisibility: .visible) {
+            ForEach(model.conversionTargets, id: \.self) { type in
+                Button("Convert to \(type.label)") { model.performConvertCurrent(to: type) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("A copy with the new type is created in the same folder. The original is not changed.")
+        }
+        .sheet(isPresented: Binding(get: { model.conversionFolder != nil },
+                                    set: { if !$0 { model.conversionFolder = nil } })) {
+            if let folder = model.conversionFolder { ConvertFolderView(folder: folder).environment(model) }
+        }
         .sheet(isPresented: Binding(get: { !model.trashFallback.isEmpty },
                                     set: { if !$0 { model.trashFallback = [] } })) {
             TrashFallbackView().environment(model)
@@ -88,7 +101,7 @@ struct HintBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text("←/→ navigate · X reject · Space fit/100% · ⌘⌫ trash · S stretch \(model.stretchEnabled ? "on" : "off") · L channels \(model.linkedChannels ? "linked" : "separate")")
+            Text("←/→ navigate · X reject · ⇧C type · Space fit/100% · ⌘⌫ trash · S stretch \(model.stretchEnabled ? "on" : "off") · L channels \(model.linkedChannels ? "linked" : "separate")")
             Spacer()
             Button("Move Rejected to Trash (\(model.rejectedCount))") { model.requestTrash() }
                 .disabled(model.rejectedCount == 0)

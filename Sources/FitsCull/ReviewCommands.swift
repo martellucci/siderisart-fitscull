@@ -13,6 +13,7 @@ struct ReviewCommands: Commands {
             Button("Last File") { model.moveToLast() }.keyboardShortcut(.end, modifiers: [])
             Divider()
             Button("Reject / Restore") { model.toggleReject() }.keyboardShortcut("x", modifiers: [])
+            Button("Convert Frame Type…") { model.requestConvertCurrent() }.keyboardShortcut("c", modifiers: .shift)
             Button("Fit / 100%") { model.zoom = model.zoom == .fit ? .full : .fit }
                 .keyboardShortcut(.space, modifiers: [])
             Button("Zoom to Fit") { model.zoom = .fit }.keyboardShortcut("0")

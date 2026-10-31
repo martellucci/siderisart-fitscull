@@ -23,6 +23,7 @@ struct FitsCullApp: App {
             CommandGroup(replacing: .newItem) {
                 Button("Open Folder…") { model.chooseFolder() }
                     .keyboardShortcut("o")
+                Button("Convert Frame Type in Folder…") { model.chooseConversionFolder() }
             }
             ReviewCommands(model: model)
         }

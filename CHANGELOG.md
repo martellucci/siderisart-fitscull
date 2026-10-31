@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.4.0 — 2026-10-31
+
+- Cambio di tipo dei frame tra Light, Dark e Flat, per le serie salvate col tipo sbagliato (es. dark ripresi con
+  l'ASIAIR rimasto su Light). Il file convertito è una **copia** nella stessa cartella; l'originale non viene
+  toccato.
+  - Nella copia cambiano solo IMAGETYP (e FRAME, se c'è), con lo stesso stile di maiuscole (`'Light'` →
+    `'Dark'`, `'LIGHT'` → `'DARK'`), e il tipo nel nome: `Light_M31_120.0s_…_0001.fit` →
+    `Dark_M31_120.0s_…_0001.fit`. Resto dell'header e dati identici byte per byte; se il nome non contiene il
+    tipo, il nuovo tipo va davanti (`Dark_…`). Senza IMAGETYP la card viene aggiunta; un eventuale CHECKSUM
+    viene tolto perché non sarebbe più valido (DATASUM resta).
+  - Non sovrascrive mai: se esiste già un file col nuovo nome, quel file viene saltato e segnalato.
+  - Singolo file: ⇧C (menù Review → Convert Frame Type…) sul file in esame, conferma con la scelta del tipo di
+    arrivo.
+  - Cartella intera: File → Convert Frame Type in Folder… sceglie una cartella qualsiasi, poi tipo di partenza e
+    di arrivo; si convertono solo i file del tipo di partenza, gli altri restano come sono.
+  - Se la cartella è quella aperta, la lista mostra subito le nuove copie, tenendo selezione, analisi e scarti.
+  - Bias e Dark flat esclusi.
+
 ## 1.3.0 — 2026-10-21
 
 - Tabella a sinistra ordinabile cliccando le intestazioni (#, Time, Exp, Bkg, FWHM″, ★, Ecc, Status): primo clic

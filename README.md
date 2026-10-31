@@ -1,4 +1,4 @@
-# FitsCull 1.3.0
+# FitsCull 1.4.0
 
 **[English](#english) · [Italiano](#italiano)**
 
@@ -21,6 +21,11 @@ and move the bad ones to the Trash.
   Settings (⌘,); Session view with charts and manual thresholds.
 - FITS header in its own window ("FITS Header…" button), following the selected file.
 - Trash with confirmation, falling back to a `_rejected/` folder on NAS volumes without a Trash.
+- Frame type conversion between Light, Dark and Flat, for a series saved with the wrong type (e.g. darks taken
+  with the ASIAIR still set to Light): ⇧C for the current file, File → Convert Frame Type in Folder… for every
+  file of one type in a folder. A converted copy is written next to the original, with IMAGETYP and the type in
+  the file name changed (`Light_…` → `Dark_…`); the original is left untouched and existing files are never
+  overwritten.
 
 Cameras: mono (e.g. ZWO ASI2600MM) and Bayer-matrix colour. ASIAIR and N.I.N.A. headers.
 Uncompressed 2-D FITS (BITPIX 8/16/32/−32).
@@ -30,7 +35,7 @@ Uncompressed 2-D FITS (BITPIX 8/16/32/−32).
 | Command | What it does |
 |---|---|
 | `scripts/build-app.sh [destination]` | Builds `FitsCull.app` and installs it in the destination folder (default `/Volumes/Dati2/applicazioni`) |
-| `scripts/test.sh` | Runs the tests (116) |
+| `scripts/test.sh` | Runs the tests (128) |
 | `swift run FitsCull` | Runs the app in development |
 | `swift run -c release fcanalyze <folder or file>` | Table of metrics and timings per file |
 
@@ -38,7 +43,7 @@ The app is ad-hoc signed: the first time, right-click it → Open.
 
 ### Keyboard
 
-←/→ or ↑/↓ navigate (in the list order) · Home/End first/last · X reject/restore · Space Fit/100% · ⌘0 Fit ·
+←/→ or ↑/↓ navigate (in the list order) · Home/End first/last · X reject/restore · ⇧C convert frame type · Space Fit/100% · ⌘0 Fit ·
 S stretch · L linked/separate channels · ⌘⌫ current file to Trash · ⇧⌘⌫ all rejected to Trash ·
 ⌘O open folder · ⌘1/⌘2 Review/Session · ⌘, Settings
 
@@ -93,6 +98,10 @@ ogni frame e spostare nel Cestino quelli da scartare. Interfaccia in inglese.
   vista Session con grafici e soglie manuali.
 - Header FITS in una finestra a parte (pulsante "FITS Header…"), che segue il file selezionato.
 - Cestino con conferma, con ripiego in `_rejected/` sui NAS senza Cestino.
+- Cambio di tipo tra Light, Dark e Flat, per le serie salvate col tipo sbagliato (es. dark ripresi con l'ASIAIR
+  rimasto su Light): ⇧C per il file corrente, File → Convert Frame Type in Folder… per tutti i file di un tipo in
+  una cartella. Accanto all'originale viene scritta una copia con IMAGETYP e il tipo nel nome cambiati
+  (`Light_…` → `Dark_…`); l'originale resta com'è e i file esistenti non vengono mai sovrascritti.
 
 Camere: mono (es. ZWO ASI2600MM) e a colori con matrice Bayer. Header ASIAIR e N.I.N.A.
 FITS non compressi a 2 dimensioni (BITPIX 8/16/32/−32).
@@ -102,7 +111,7 @@ FITS non compressi a 2 dimensioni (BITPIX 8/16/32/−32).
 | Comando | Cosa fa |
 |---|---|
 | `scripts/build-app.sh [destinazione]` | Crea `FitsCull.app` e la installa nella cartella indicata (predefinita `/Volumes/Dati2/applicazioni`) |
-| `scripts/test.sh` | Esegue i test (116) |
+| `scripts/test.sh` | Esegue i test (128) |
 | `swift run FitsCull` | Avvia l'app in sviluppo |
 | `swift run -c release fcanalyze <cartella o file>` | Tabella delle metriche e dei tempi per file |
 
@@ -110,7 +119,7 @@ Al primo avvio dell'app installata: clic destro → Apri (firma ad-hoc).
 
 ### Tastiera
 
-←/→ o ↑/↓ naviga (nell'ordine della tabella) · Inizio/Fine primo/ultimo · X scarta/ripristina · Spazio Fit/100% · ⌘0 Fit ·
+←/→ o ↑/↓ naviga (nell'ordine della tabella) · Inizio/Fine primo/ultimo · X scarta/ripristina · ⇧C cambia tipo del frame · Spazio Fit/100% · ⌘0 Fit ·
 S stretch · L canali collegati/separati · ⌘⌫ file corrente nel Cestino · ⇧⌘⌫ tutti gli scartati nel Cestino ·
 ⌘O apri cartella · ⌘1/⌘2 Review/Session · ⌘, Settings
 
